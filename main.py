@@ -12,9 +12,10 @@ CLIENT_SECRETS_FILE = os.path.dirname(
 SCOPES = ['https://www.googleapis.com/auth/youtube.force-ssl']
 API_SERVICE_NAME = 'youtube'
 API_VERSION = 'v3'
+NEW_LINE = '\n'
 
 
-def get_authenticated_service():
+def getAuthenticatedService():
     credentials = None
     if os.path.exists('token.pickle'):
         with open('token.pickle', 'rb') as token:
@@ -60,7 +61,7 @@ def getComments(service, videoId):
         comments.append(items[i]['snippet']
                         ['topLevelComment']['snippet']['textOriginal'])
 
-    print("Comments found: " + str(comments))
+    print("Comments found: " + str(comments) + NEW_LINE)
     return comments
 
 
@@ -77,7 +78,7 @@ def getTimestamps(comments):
         except:
             pass
 
-    print("Timestamps found: " + str(timestamps))
+    print("Timestamps found: " + str(timestamps) + NEW_LINE)
     return timestamps
 
 
@@ -93,8 +94,8 @@ def convertTimestampToSeconds(timestamp):
 if __name__ == "__main__":
     # When running locally, disable OAuthlib's HTTPs verification.
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
-    service = get_authenticated_service()
-    print("Enter a list of youtube videos. Type d to delete previously added video. Type f when finished")
+    service = getAuthenticatedService()
+    print("Enter a list of youtube videos. Type d to delete previously added video. Type f when finished" + NEW_LINE)
     currentDirectory = os.path.dirname(os.path.realpath(__file__))
     videoDirectory = currentDirectory + "/Videos"
     outputDirectory = currentDirectory + "/Output"
@@ -110,16 +111,16 @@ if __name__ == "__main__":
         command = input()
         if command[0] == 'd' and len(command) == 1:
             if len(urls) == 0:
-                print("Nothing to delete.")
+                print("Nothing to delete." + NEW_LINE)
             else:
-                print("You deleted " + urls[-1])
+                print("You deleted " + urls[-1] + NEW_LINE)
                 del urls[-1]
         elif command[0] == 'f' and len(command) == 1:
             break
         else:
             urls.append(command)
             print("Added " + command)
-        print("You currently have " + str(len(urls)) + " items.")
+        print("You currently have " + str(len(urls)) + " items." + NEW_LINE)
     for url in urls:
         videoId = getVideoId(url)
 
