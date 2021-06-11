@@ -14,5 +14,7 @@ Get comments from youtube video that follow a specific time stamp format. Clip t
 5. download ffmpeg and add to environment variable (required by the library that is used to download YT video)
 
 ### How to use
+1. leave comments on the youtube video in the format `$c xx:xx-yy:yy`. Note that for time stamps like 1:24, they should be represtend as 01:24
+
 1. enter links, press enter after each link
 2. press f to start generating highlights
