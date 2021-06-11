@@ -1,4 +1,3 @@
-import pytube
 import os
 import pickle
 from moviepy.editor import VideoFileClip, concatenate_videoclips
@@ -6,11 +5,14 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
+import youtube_dl
 
-CLIENT_SECRETS_FILE = os.path.dirname(os.path.realpath(__file__)) + "/client_secret.json"
+CLIENT_SECRETS_FILE = os.path.dirname(
+    os.path.realpath(__file__)) + "/client_secret.json"
 SCOPES = ['https://www.googleapis.com/auth/youtube.force-ssl']
 API_SERVICE_NAME = 'youtube'
 API_VERSION = 'v3'
+
 
 def get_authenticated_service():
     credentials = None
@@ -26,17 +28,19 @@ def get_authenticated_service():
             flow = InstalledAppFlow.from_client_secrets_file(
                 CLIENT_SECRETS_FILE, SCOPES)
             credentials = flow.run_console()
- 
         # Save the credentials for the next run
         with open('token.pickle', 'wb') as token:
             pickle.dump(credentials, token)
- 
-    return build(API_SERVICE_NAME, API_VERSION, credentials = credentials)
+    return build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
 
-def downloadVideo(directory,filename,url):
-    print("Downloading " + url) 
-    pytube.YouTube(url).streams.get_highest_resolution().download(output_path = directory, filename = filename)
-    print("Finished downloading " + url)
+
+def downloadVideo(directory, filename, url):
+    # 137 is 1920x1080 don't ask me how it just is
+    ydl_opts = {'format': '137+bestaudio',
+                'outtmpl': directory + "/" + filename}
+    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+        ydl.download([url])
+
 
 def getVideoId(url):
     return url[url.find("=")+1:len(url)]
@@ -52,8 +56,9 @@ def getComments(service, videoId):
     numComments = response['pageInfo']['totalResults']
     items = response['items']
     comments = []
-    for i in range(0,numComments):
-        comments.append(items[i]['snippet']['topLevelComment']['snippet']['textOriginal'])
+    for i in range(0, numComments):
+        comments.append(items[i]['snippet']
+                        ['topLevelComment']['snippet']['textOriginal'])
 
     print("Comments found: " + str(comments))
     return comments
@@ -65,7 +70,7 @@ def getTimestamps(comments):
         # Only supports in comments in this format $c xx:xx-yy:yy
         try:
             if comment[0] == '$' and comment[1] == 'c':
-                timestamp = (comment[3:8],comment[9:14])
+                timestamp = (comment[3:8], comment[9:14])
                 seconds = convertTimestampToSeconds(timestamp)
                 if seconds is not None:
                     timestamps.append(seconds)
@@ -86,8 +91,6 @@ def convertTimestampToSeconds(timestamp):
 
 
 if __name__ == "__main__":
-    
-
     # When running locally, disable OAuthlib's HTTPs verification.
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
     service = get_authenticated_service()
@@ -100,8 +103,8 @@ if __name__ == "__main__":
     if not os.path.exists(outputDirectory):
         os.mkdir(outputDirectory)
 
-    urls=[]
-    clips=[]
+    urls = []
+    clips = []
 
     while True:
         command = input()
@@ -117,15 +120,14 @@ if __name__ == "__main__":
             urls.append(command)
             print("Added " + command)
         print("You currently have " + str(len(urls)) + " items.")
-    
     for url in urls:
         videoId = getVideoId(url)
 
-        downloadVideo(videoDirectory,videoId, url)
+        downloadVideo(videoDirectory, videoId, url)
         comments = getComments(service, videoId)
         timestamps = getTimestamps(comments)
         for timestamp in timestamps:
-            clips.append(VideoFileClip(videoDirectory + "/" + videoId + ".mp4").subclip(timestamp[0],timestamp[1]))
-
+            clips.append(VideoFileClip(videoDirectory + "/" +
+                         videoId + ".mp4").subclip(timestamp[0], timestamp[1]))
     final_clip = concatenate_videoclips(clips)
     final_clip.write_videofile(outputDirectory + "/" + "output.mp4")
