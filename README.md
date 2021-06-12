@@ -16,5 +16,6 @@ Get comments from youtube video that follow a specific time stamp format. Clip t
 ### How to use
 1. leave comments on the youtube video in the format `$c xx:xx-yy:yy`. Note that for time stamps like 1:24, they should be represtend as 01:24
 
-1. enter links, press enter after each link
-2. press f to start generating highlights
+1. run `python main.py`
+2. enter links, press enter after each link
+3. press f to start generating highlights
