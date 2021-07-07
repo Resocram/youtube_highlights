@@ -1,6 +1,7 @@
 import os
 import pickle
 from moviepy.editor import VideoFileClip, concatenate_videoclips
+import moviepy.video.fx.all as vfx
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -65,12 +66,12 @@ def getComments(service, videoId):
     return comments
 
 
+# Only supports comments in this format $c xx:xx-yy:yy
 def getTimestamps(comments):
     timestamps = []
     for comment in comments:
-        # Only supports in comments in this format $c xx:xx-yy:yy
         try:
-            if comment[0] == '$' and comment[1] == 'c':
+            if comment[0:2] == '$c':
                 timestamp = (comment[3:8], comment[9:14])
                 seconds = convertTimestampToSeconds(timestamp)
                 if seconds is not None:
@@ -81,6 +82,21 @@ def getTimestamps(comments):
     print("Timestamps found: " + str(timestamps) + NEW_LINE)
     return timestamps
 
+# Only supports comments in this format $cs xx:xx-yy:yy aa:aa-bb:bb
+def getSlowMotionTimestamps(comments):
+    timestamps = []
+    for comment in comments:
+        try:
+            if comment[0:3] == '$cs':
+                timestamp = ((comment[4:9], comment[10:15]), (comment[16:21], comment[22:27]))
+                seconds = (convertTimestampToSeconds(timestamp[0]), convertTimestampToSeconds(timestamp[1]))
+                if seconds is not None and seconds[0] is not None and seconds[1] is not None:
+                    timestamps.append(seconds)
+        except:
+            pass
+
+    print("Slow motion timestamps found: " + str(timestamps) + NEW_LINE)
+    return timestamps
 
 def convertTimestampToSeconds(timestamp):
     try:
@@ -89,7 +105,6 @@ def convertTimestampToSeconds(timestamp):
         return startTime, endTime
     except:
         pass
-
 
 if __name__ == "__main__":
     # When running locally, disable OAuthlib's HTTPs verification.
@@ -126,9 +141,15 @@ if __name__ == "__main__":
 
         downloadVideo(videoDirectory, videoId, url)
         comments = getComments(service, videoId)
+
         timestamps = getTimestamps(comments)
         for timestamp in timestamps:
-            clips.append(VideoFileClip(videoDirectory + "/" +
-                         videoId + ".mp4").subclip(timestamp[0], timestamp[1]))
+            clips.append(VideoFileClip(videoDirectory + "/" + videoId + ".mp4").subclip(timestamp[0], timestamp[1]))
+
+        slowMotionTimeStamps = getSlowMotionTimestamps(comments)
+        for timestamp in slowMotionTimeStamps:
+            clips.append(VideoFileClip(videoDirectory + "/" + videoId + ".mp4").subclip(timestamp[0][0], timestamp[0][1]))
+            clips.append(VideoFileClip(videoDirectory + "/" + videoId + ".mp4").subclip(timestamp[1][0], timestamp[1][1]).fx(vfx.speedx, 0.3))
+
     final_clip = concatenate_videoclips(clips)
     final_clip.write_videofile(outputDirectory + "/" + "output.mp4")
