@@ -1,12 +1,14 @@
 import os
 import pickle
-from moviepy.editor import VideoFileClip, concatenate_videoclips
+from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_videoclips
+from moviepy.editor import *
 import moviepy.video.fx.all as vfx
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import youtube_dl
+import datetime
 
 CLIENT_SECRETS_FILE = os.path.dirname(
     os.path.realpath(__file__)) + "/client_secret.json"
@@ -40,6 +42,19 @@ def downloadVideo(directory, filename, url):
     # 137 is 1920x1080 don't ask me how it just is
     ydl_opts = {'format': '137+bestaudio',
                 'outtmpl': directory + "/" + filename}
+    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+        ydl.download([url])
+
+def downloadMusic(directory, filename, url):
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }],
+        'outtmpl': directory + "/" + filename + ".mp3"
+        }
     with youtube_dl.YoutubeDL(ydl_opts) as ydl:
         ydl.download([url])
 
@@ -114,10 +129,13 @@ if __name__ == "__main__":
     currentDirectory = os.path.dirname(os.path.realpath(__file__))
     videoDirectory = currentDirectory + "/Videos"
     outputDirectory = currentDirectory + "/Output"
+    musicDirectory = currentDirectory + "/Music"
     if not os.path.exists(videoDirectory):
         os.mkdir(videoDirectory)
     if not os.path.exists(outputDirectory):
         os.mkdir(outputDirectory)
+    if not os.path.exists(musicDirectory):
+        os.mkdir(musicDirectory)
 
     urls = []
     clips = []
@@ -136,6 +154,7 @@ if __name__ == "__main__":
             urls.append(command)
             print("Added " + command)
         print("You currently have " + str(len(urls)) + " items." + NEW_LINE)
+
     for url in urls:
         videoId = getVideoId(url)
 
@@ -152,4 +171,21 @@ if __name__ == "__main__":
             clips.append(VideoFileClip(videoDirectory + "/" + videoId + ".mp4").subclip(timestamp[1][0], timestamp[1][1]).fx(vfx.speedx, 0.3))
 
     final_clip = concatenate_videoclips(clips)
+
+    clip_len = final_clip.duration
+    print("The final clip is " + str(clip_len) + " seconds, or " + str(datetime.timedelta(seconds=clip_len)) + ", if you would like to add an audio clip, enter the youtube link. Otherwise, type f.")
+    print("The music video should be equal or shorter in length than the video." + NEW_LINE + NEW_LINE)
+    while True:
+        command = input()
+        if command[0] == 'f' and len(command) == 1:
+            break
+        else:
+            videoId = getVideoId(command)
+            downloadMusic(musicDirectory, videoId, command)
+            audioclip = AudioFileClip(musicDirectory + "/" + videoId + ".mp3")
+
+            new_audioclip = CompositeAudioClip([audioclip])
+            final_clip.audio = new_audioclip
+            break
+
     final_clip.write_videofile(outputDirectory + "/" + "output.mp4")
