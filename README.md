@@ -16,6 +16,8 @@ Get comments from youtube video that follow a specific time stamp format. Clip t
 ### How to use - dev
 1. enter links, press enter after each link
 2. press f to start generating highlights
+3. after the highlight video has been processed, the program will ask if you would like to add music to the video. Enter a youtube link if you want to include the audio or enter f to skip
+- note that if the music/audio is longer than the highlight video length, it will just result in a still image and the highlights video being dragged out longer. It's preferable to have music that is shorter than or equal in length to the highlhight video.
 
 ### How to use - user
 #### clip ($c)
