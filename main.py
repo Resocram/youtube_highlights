@@ -184,7 +184,7 @@ if __name__ == "__main__":
             downloadMusic(musicDirectory, videoId, command)
             audioclip = AudioFileClip(musicDirectory + "/" + videoId + ".mp3")
 
-            new_audioclip = CompositeAudioClip([audioclip])
+            new_audioclip = CompositeAudioClip([final_clip.audio, audioclip])
             final_clip.audio = new_audioclip
             break
 
