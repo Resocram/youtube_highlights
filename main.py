@@ -1,6 +1,6 @@
 import os
 import pickle
-from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_videoclips
+from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_videoclips, concatenate_audioclips
 from moviepy.editor import *
 import moviepy.video.fx.all as vfx
 from googleapiclient.discovery import build
@@ -16,6 +16,7 @@ SCOPES = ['https://www.googleapis.com/auth/youtube.force-ssl']
 API_SERVICE_NAME = 'youtube'
 API_VERSION = 'v3'
 NEW_LINE = '\n'
+EMPTY_DELETE_MESSAGE = "Nothing to delete." + NEW_LINE
 
 
 def getAuthenticatedService():
@@ -121,6 +122,71 @@ def convertTimestampToSeconds(timestamp):
     except:
         pass
 
+def processUrlInput():
+    urls = []
+    while True:
+        command = input()
+        if command[0] == 'd' and len(command) == 1:
+            if len(urls) == 0:
+                print(EMPTY_DELETE_MESSAGE)
+            else:
+                print("You deleted " + urls[-1] + NEW_LINE)
+                del urls[-1]
+        elif command[0] == 'f' and len(command) == 1:
+            break
+        else:
+            urls.append(command)
+            print("Added " + command)
+        print("You currently have " + str(len(urls)) + " items." + NEW_LINE)
+
+    return urls
+
+def processMusicInput(clip_len):
+    print("The final clip is " + str(clip_len) + " seconds, or " + str(datetime.timedelta(seconds=clip_len)) + ", if you would like to add an audio clip, enter the youtube link. Type d to delete previously added music. Otherwise, type f.")
+    print("The music video should be equal or shorter in length than the video." + NEW_LINE + NEW_LINE)
+    urls = []
+    while True:
+        command = input()
+        if command[0] == 'f' and len(command) == 1:
+            break
+        if command[0] == 'd' and len(command) == 1:
+            if len(urls) == 0:
+                print(EMPTY_DELETE_MESSAGE)
+            else:
+                print("You deleted " + urls[-1] + NEW_LINE)
+                del urls[-1]
+        else:
+            urls.append(command)
+        print("You currently have " + str(len(urls)) + " items." + NEW_LINE)
+
+
+    audioClips = []
+    for url in urls:
+        videoId = getVideoId(url)
+        downloadMusic(musicDirectory, videoId, url)
+        audioClips.append(AudioFileClip(musicDirectory + "/" + videoId + ".mp3"))
+
+    return concatenate_audioclips(audioClips) if len(audioClips) > 0 else None
+
+def processClips(urls):
+    clips = []
+    for url in urls:
+        videoId = getVideoId(url)
+
+        downloadVideo(videoDirectory, videoId, url)
+        comments = getComments(service, videoId)
+
+        timestamps = getTimestamps(comments)
+        for timestamp in timestamps:
+            clips.append(VideoFileClip(videoDirectory + "/" + videoId + ".mp4").subclip(timestamp[0], timestamp[1]))
+
+        slowMotionTimeStamps = getSlowMotionTimestamps(comments)
+        for timestamp in slowMotionTimeStamps:
+            clips.append(VideoFileClip(videoDirectory + "/" + videoId + ".mp4").subclip(timestamp[0][0], timestamp[0][1]))
+            clips.append(VideoFileClip(videoDirectory + "/" + videoId + ".mp4").subclip(timestamp[1][0], timestamp[1][1]).fx(vfx.speedx, 0.3))
+
+    return clips
+
 if __name__ == "__main__":
     # When running locally, disable OAuthlib's HTTPs verification.
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
@@ -137,55 +203,13 @@ if __name__ == "__main__":
     if not os.path.exists(musicDirectory):
         os.mkdir(musicDirectory)
 
-    urls = []
-    clips = []
+    urls = processUrlInput()
+    clips = processClips(urls)
+    finalClip = concatenate_videoclips(clips)
 
-    while True:
-        command = input()
-        if command[0] == 'd' and len(command) == 1:
-            if len(urls) == 0:
-                print("Nothing to delete." + NEW_LINE)
-            else:
-                print("You deleted " + urls[-1] + NEW_LINE)
-                del urls[-1]
-        elif command[0] == 'f' and len(command) == 1:
-            break
-        else:
-            urls.append(command)
-            print("Added " + command)
-        print("You currently have " + str(len(urls)) + " items." + NEW_LINE)
+    musicAudio = processMusicInput(finalClip.duration)
+    if musicAudio is not None:
+        new_audioclip = CompositeAudioClip([finalClip.audio, musicAudio])
+        finalClip.audio = new_audioclip
 
-    for url in urls:
-        videoId = getVideoId(url)
-
-        downloadVideo(videoDirectory, videoId, url)
-        comments = getComments(service, videoId)
-
-        timestamps = getTimestamps(comments)
-        for timestamp in timestamps:
-            clips.append(VideoFileClip(videoDirectory + "/" + videoId + ".mp4").subclip(timestamp[0], timestamp[1]))
-
-        slowMotionTimeStamps = getSlowMotionTimestamps(comments)
-        for timestamp in slowMotionTimeStamps:
-            clips.append(VideoFileClip(videoDirectory + "/" + videoId + ".mp4").subclip(timestamp[0][0], timestamp[0][1]))
-            clips.append(VideoFileClip(videoDirectory + "/" + videoId + ".mp4").subclip(timestamp[1][0], timestamp[1][1]).fx(vfx.speedx, 0.3))
-
-    final_clip = concatenate_videoclips(clips)
-
-    clip_len = final_clip.duration
-    print("The final clip is " + str(clip_len) + " seconds, or " + str(datetime.timedelta(seconds=clip_len)) + ", if you would like to add an audio clip, enter the youtube link. Otherwise, type f.")
-    print("The music video should be equal or shorter in length than the video." + NEW_LINE + NEW_LINE)
-    while True:
-        command = input()
-        if command[0] == 'f' and len(command) == 1:
-            break
-        else:
-            videoId = getVideoId(command)
-            downloadMusic(musicDirectory, videoId, command)
-            audioclip = AudioFileClip(musicDirectory + "/" + videoId + ".mp3")
-
-            new_audioclip = CompositeAudioClip([final_clip.audio, audioclip])
-            final_clip.audio = new_audioclip
-            break
-
-    final_clip.write_videofile(outputDirectory + "/" + "output.mp4")
+    finalClip.write_videofile(outputDirectory + "/" + "output.mp4")
