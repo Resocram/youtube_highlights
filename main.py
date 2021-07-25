@@ -142,31 +142,34 @@ def processUrlInput():
     return urls
 
 def processMusicInput(clip_len):
-    print("The final clip is " + str(clip_len) + " seconds, or " + str(datetime.timedelta(seconds=clip_len)) + ", if you would like to add an audio clip, enter the youtube link. Type d to delete previously added music. Otherwise, type f.")
-    print("The music video should be equal or shorter in length than the video." + NEW_LINE + NEW_LINE)
-    urls = []
-    while True:
-        command = input()
-        if command[0] == 'f' and len(command) == 1:
-            break
-        if command[0] == 'd' and len(command) == 1:
-            if len(urls) == 0:
-                print(EMPTY_DELETE_MESSAGE)
+    try:
+        print("The final clip is " + str(clip_len) + " seconds, or " + str(datetime.timedelta(seconds=clip_len)) + ", if you would like to add an audio clip, enter the youtube link. Type d to delete previously added music. Otherwise, type f.")
+        print("The music video should be equal or shorter in length than the video." + NEW_LINE + NEW_LINE)
+        urls = []
+        while True:
+            command = input()
+            if command[0] == 'f' and len(command) == 1:
+                break
+            if command[0] == 'd' and len(command) == 1:
+                if len(urls) == 0:
+                    print(EMPTY_DELETE_MESSAGE)
+                else:
+                    print("You deleted " + urls[-1] + NEW_LINE)
+                    del urls[-1]
             else:
-                print("You deleted " + urls[-1] + NEW_LINE)
-                del urls[-1]
-        else:
-            urls.append(command)
-        print("You currently have " + str(len(urls)) + " items." + NEW_LINE)
+                urls.append(command)
+            print("You currently have " + str(len(urls)) + " items." + NEW_LINE)
 
+        audioClips = []
+        for url in urls:
+            videoId = getVideoId(url)
+            downloadMusic(musicDirectory, videoId, url)
+            audioClips.append(AudioFileClip(musicDirectory + "/" + videoId + ".mp3"))
 
-    audioClips = []
-    for url in urls:
-        videoId = getVideoId(url)
-        downloadMusic(musicDirectory, videoId, url)
-        audioClips.append(AudioFileClip(musicDirectory + "/" + videoId + ".mp3"))
+        return concatenate_audioclips(audioClips) if len(audioClips) > 0 else None
 
-    return concatenate_audioclips(audioClips) if len(audioClips) > 0 else None
+    except:
+        return None
 
 def processClips(urls):
     clips = []
