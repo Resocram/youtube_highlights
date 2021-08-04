@@ -81,7 +81,6 @@ def getComments(service, videoId):
     print("Comments found: " + str(comments) + NEW_LINE)
     return comments
 
-
 # Only supports comments in this format $c xx:xx-yy:yy
 def getTimestamps(comments):
     timestamps = []
@@ -114,6 +113,40 @@ def getSlowMotionTimestamps(comments):
     print("Slow motion timestamps found: " + str(timestamps) + NEW_LINE)
     return timestamps
 
+# Only supports comments in this format $d xx:xx-yy:yy
+def getDownloadTimestamps(comments):
+    timestamps = []
+    for comment in comments:
+        try:
+            if comment[0:2] == '$d':
+                timestamp = (comment[3:8], comment[9:14])
+                seconds = convertTimestampToSeconds(timestamp)
+                if seconds is not None:
+                    timestamps.append(seconds)
+        except:
+            pass
+
+    print("Download timestamps found: " + str(timestamps) + NEW_LINE)
+    return timestamps
+
+# Only supports comments in this format $f xx:xx-yy:yy
+# f for fast forward
+def getTimeLapseTimestamps(comments):
+    timestamps = []
+
+    for comment in comments:
+        try:
+            if comment[0:2] == '$f':
+                timestamp = (comment[3:8], comment[9:14])
+                seconds = convertTimestampToSeconds(timestamp)
+                if seconds is not None:
+                    timestamps.append(seconds)
+        except:
+            pass
+
+    print("Time lapse timestamps found: " + str(timestamps) + NEW_LINE)
+    return timestamps
+
 def convertTimestampToSeconds(timestamp):
     try:
         startTime = int(timestamp[0][0:2])*60 + int(timestamp[0][3:5])
@@ -143,7 +176,7 @@ def processUrlInput():
 
 def processMusicInput(clip_len):
     try:
-        print("The final clip is " + str(clip_len) + " seconds, or " + str(datetime.timedelta(seconds=clip_len)) + ", if you would like to add an audio clip, enter the youtube link. Type d to delete previously added music. Otherwise, type f.")
+        print("The final clip is " + str(clip_len) + " seconds, or " + str(datetime.timedelta(seconds=int(clip_len))) + ", if you would like to add an audio clip, enter the youtube link. Type d to delete previously added music. Otherwise, type f.")
         print("The music video should be equal or shorter in length than the video." + NEW_LINE + NEW_LINE)
         urls = []
         while True:
@@ -168,10 +201,12 @@ def processMusicInput(clip_len):
 
         return concatenate_audioclips(audioClips) if len(audioClips) > 0 else None
 
-    except:
+    except Exception as e:
+        print("Problem in music processing")
+        print(e)
         return None
 
-def processClips(urls):
+def processClips(urls, currentDirectory):
     clips = []
     for url in urls:
         videoId = getVideoId(url)
@@ -187,6 +222,19 @@ def processClips(urls):
         for timestamp in slowMotionTimeStamps:
             clips.append(VideoFileClip(videoDirectory + "/" + videoId + ".mp4").subclip(timestamp[0][0], timestamp[0][1]))
             clips.append(VideoFileClip(videoDirectory + "/" + videoId + ".mp4").subclip(timestamp[1][0], timestamp[1][1]).fx(vfx.speedx, 0.3))
+
+        downloadTimeStamps = getDownloadTimestamps(comments)
+        downloadsDirectory = currentDirectory + "/DownloadedClips"
+        if not os.path.exists(downloadsDirectory):
+            os.mkdir(downloadsDirectory)
+        for timestamp in downloadTimeStamps:
+            downloadClip = VideoFileClip(videoDirectory + "/" + videoId + ".mp4").subclip(timestamp[0], timestamp[1])
+            downloadClip.write_videofile(downloadsDirectory + "/" + str(timestamp[0]) + str(timestamp[1]) + ".mp4")
+            downloadClip.close()
+
+        timelapseTimeStamps = getTimeLapseTimestamps(comments)
+        for timestamp in timelapseTimeStamps:
+            clips.append(VideoFileClip(videoDirectory + "/" + videoId + ".mp4").subclip(timestamp[0], timestamp[1]).fx(vfx.speedx, 50))
 
     return clips
 
@@ -207,7 +255,7 @@ if __name__ == "__main__":
         os.mkdir(musicDirectory)
 
     urls = processUrlInput()
-    clips = processClips(urls)
+    clips = processClips(urls, currentDirectory)
     finalClip = concatenate_videoclips(clips)
 
     musicAudio = processMusicInput(finalClip.duration)

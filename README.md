@@ -26,3 +26,11 @@ Get comments from youtube video that follow a specific time stamp format. Clip t
 #### clip and slow ($cs)
 - format: `$cs xx:xx-yy:yy aa:aa-bb:bb`
 - the time from `aa:aa-bb:bb` will be played right after the clip from `xx:xx-yy:yy` but in slow motion
+
+#### download ($d) - dev only command
+- format: `$d xx:xx-yy:yy`
+- downloads the timestamp/clip to /DownloadedClips
+
+#### fast forward ($f)
+- format `$f xx:xx-yy:yy`
+- plays the timestamp 50x faster than normal
