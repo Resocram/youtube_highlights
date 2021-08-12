@@ -234,7 +234,9 @@ def processClips(urls, currentDirectory):
 
         timelapseTimeStamps = getTimeLapseTimestamps(comments)
         for timestamp in timelapseTimeStamps:
-            clips.append(VideoFileClip(videoDirectory + "/" + videoId + ".mp4").subclip(timestamp[0], timestamp[1]).fx(vfx.speedx, 50))
+            new_clip = VideoFileClip(videoDirectory + "/" + videoId + ".mp4").subclip(timestamp[0], timestamp[1])
+            new_clip.audio = None
+            clips.append(new_clip.fx(vfx.speedx, 60))
 
     return clips
 
