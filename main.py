@@ -40,11 +40,12 @@ def getAuthenticatedService():
 
 
 def downloadVideo(directory, filename, url):
-    # 137 is 1920x1080 don't ask me how it just is
-    ydl_opts = {'format': '137+bestaudio',
-                'outtmpl': directory + "/" + filename}
-    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-        ydl.download([url])
+    if not os.path.exists(directory + "/" + filename + ".mp4"):
+        # 137 is 1920x1080 don't ask me how it just is
+        ydl_opts = {'format': '137+bestaudio',
+                    'outtmpl': directory + "/" + filename}
+        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
 
 def downloadMusic(directory, filename, url):
     ydl_opts = {
