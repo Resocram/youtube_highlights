@@ -263,7 +263,7 @@ if __name__ == "__main__":
 
     musicAudio = processMusicInput(finalClip.duration)
     if musicAudio is not None:
-        new_audioclip = CompositeAudioClip([finalClip.audio, musicAudio])
+        new_audioclip = CompositeAudioClip([finalClip.audio, musicAudio]) if finalClip.audio is not None else CompositeAudioClip([musicAudio])
         finalClip.audio = new_audioclip
 
     finalClip.write_videofile(outputDirectory + "/" + "output.mp4")
