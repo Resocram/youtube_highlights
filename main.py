@@ -209,7 +209,8 @@ def processMusicInput(clip_len):
 
 def processClips(urls, currentDirectory):
     clips = []
-    for url in urls:
+    for idx, url in enumerate(urls):
+        print("Handling video: " + str(idx + 1) + ", " + str(url) + NEW_LINE)
         videoId = getVideoId(url)
 
         downloadVideo(videoDirectory, videoId, url)
