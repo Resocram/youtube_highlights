@@ -8,10 +8,11 @@ Get comments from youtube video that follow a specific time stamp format. Clip t
 
 ### Set Up
 1. run `pip install -r requirements.txt`
-2. run `python main.py`
-3. prompted to authenticate on gmail
-4. copy paste token to terminal
-5. download ffmpeg and add to environment variable (required by the library that is used to download YT video)
+2. add client_secrets.json file with the correct credentials (contact developer for more info)
+3. run `python main.py`
+4. prompted to authenticate on gmail
+5. copy paste token to terminal
+6. download ffmpeg and add to environment variable (required by the library that is used to download YT video)
 
 ### How to use - dev
 1. enter links, press enter after each link

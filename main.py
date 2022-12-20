@@ -32,7 +32,7 @@ def getAuthenticatedService():
         else:
             flow = InstalledAppFlow.from_client_secrets_file(
                 CLIENT_SECRETS_FILE, SCOPES)
-            credentials = flow.run_console()
+            credentials = flow.run_local_server(port=0)
         # Save the credentials for the next run
         with open('token.pickle', 'wb') as token:
             pickle.dump(credentials, token)
