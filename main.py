@@ -11,6 +11,7 @@ import youtube_dl
 import datetime
 import re
 from timestamp import Timestamp
+from moviepy.video.tools.subtitles import SubtitlesClip
 
 CLIENT_SECRETS_FILE = os.path.dirname(
     os.path.realpath(__file__)) + "/client_secret.json"
@@ -139,18 +140,11 @@ def getAllTimestamps(comments):
     # Regex to get all matching comments
     timestamps = []
     for comment in comments:
-        regex = "\$([a-z]{1,2})\s([0-9]{1,2}):([0-9]{2})-([0-9]{1,2}):([0-9]{2})"
+        regex = "\$([a-z]{1,3})\s([0-9]{1,2}):([0-9]{2})-([0-9]{1,2}):([0-9]{2})"
         groups = re.findall(regex,comment)
-        prevTime = None
         for group in groups:
-            currTime = Timestamp(*group)
-            if prevTime:
-                prevTime.next = currTime
-                currTime.prev = prevTime
-            prevTime = currTime
-        # We only want to append the first timestamp of a comment
-        timestamps.append(currTime.head())
-        
+            timestamps.append(Timestamp(*group))
+            
     # Sort comments by chronological order of the first given timestamp in a comment
     # We can sort faster by sorting the timestamps upon insertion but that's too much effort and we don't have that many timestamps lol
     timestamps.sort()
@@ -158,6 +152,7 @@ def getAllTimestamps(comments):
 
 CLIP = "c"
 CLOSED_CAPTIONING = "cc"
+CLOSED_CAPTIONING_BLACK = "ccb"
 DOWNLOAD = "d"
 FAST_FORWARD = "f"
 NO_MUSIC = "nm"
@@ -176,29 +171,26 @@ def processClips(urls, currentDirectory):
         downloadsDirectory = currentDirectory + "/DownloadedClips"
         
         for timestamp in timestamps:
-            while timestamp is not None:
-                if timestamp.command == CLIP:
-                    clips.append(VideoFileClip(clipPath).subclip(timestamp.startTime, timestamp.endTime))
-                elif timestamp.command == CLOSED_CAPTIONING:
-                    # TODO
-                    pass
-                elif timestamp.command == DOWNLOAD:
-                    if not os.path.exists(downloadsDirectory):
-                        os.mkdir(downloadsDirectory)
-                    downloadClip = VideoFileClip(clipPath).subclip(timestamp.startTime, timestamp.endTime)
-                    downloadClip.write_videofile(downloadsDirectory + "/" + str(timestamp.startTime) + str(timestamp.endTime) + ".mp4")
-                    downloadClip.close()
-                elif timestamp.command == FAST_FORWARD:
-                    new_clip = VideoFileClip(clipPath).subclip(timestamp.startTime, timestamp.endTime)
-                    new_clip.audio = None
-                    clips.append(new_clip.fx(vfx.speedx, 60))
-                elif timestamp.command == NO_MUSIC:
-                    # TODO
-                    pass
-                elif timestamp.command == SLOW:
-                    clips.append(VideoFileClip(clipPath).subclip(timestamp.startTime, timestamp.endTime).fx(vfx.speedx, 0.3))
-                print(timestamp)
-                timestamp = timestamp.next
+            if timestamp.command == CLIP:
+                clips.append(VideoFileClip(clipPath).subclip(timestamp.startTime, timestamp.endTime))
+            elif timestamp.command == CLOSED_CAPTIONING:
+                # TODO
+                pass
+            elif timestamp.command == DOWNLOAD:
+                if not os.path.exists(downloadsDirectory):
+                    os.mkdir(downloadsDirectory)
+                downloadClip = VideoFileClip(clipPath).subclip(timestamp.startTime, timestamp.endTime)
+                downloadClip.write_videofile(downloadsDirectory + "/" + str(timestamp.startTime) + str(timestamp.endTime) + ".mp4")
+                downloadClip.close()
+            elif timestamp.command == FAST_FORWARD:
+                new_clip = VideoFileClip(clipPath).subclip(timestamp.startTime, timestamp.endTime)
+                new_clip.audio = None
+                clips.append(new_clip.fx(vfx.speedx, 60))
+            elif timestamp.command == NO_MUSIC:
+                # TODO
+                pass
+            elif timestamp.command == SLOW:
+                clips.append(VideoFileClip(clipPath).subclip(timestamp.startTime, timestamp.endTime).fx(vfx.speedx, 0.3))
     return clips
 
 if __name__ == "__main__":
@@ -227,3 +219,5 @@ if __name__ == "__main__":
         finalClip.audio = new_audioclip
 
     finalClip.write_videofile(outputDirectory + "/" + "output.mp4")
+
+    

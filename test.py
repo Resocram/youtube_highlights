@@ -24,10 +24,9 @@ class TestGetTimestampRegex(unittest.TestCase):
         output = getAllTimestamps(["$c 2:24-3:45 $s 02:25-03:40"])
         expectedTimestamp1 = Timestamp("c", "2","24","3","45")
         expectedTimestamp2 = Timestamp("s", "2","25","3","40")
-        self.assertEqual(len(output),1)
+        self.assertEqual(len(output),2)
         self.assertEqual(output[0],expectedTimestamp1)
-        self.assertEqual(output[0].next,expectedTimestamp2)
-        self.assertEqual(output[0].next.prev,expectedTimestamp1)
+        self.assertEqual(output[1],expectedTimestamp2)
         
     # Test singular timestamps in a multiple comment
     def test_single_timestamp_multiple_comments(self):
@@ -37,8 +36,6 @@ class TestGetTimestampRegex(unittest.TestCase):
         self.assertEqual(len(output),2)
         self.assertEqual(output[0],expectedTimestamp1)
         self.assertEqual(output[1],expectedTimestamp2)
-        self.assertEqual(output[0].next,None)
-        self.assertEqual(output[1].next,None)
         
     # Test timestamps are sorted
     def test_sorted_timestamp(self):
@@ -49,11 +46,11 @@ class TestGetTimestampRegex(unittest.TestCase):
         expectedTimestamp3 = Timestamp("w", "2","26","2","28")
         expectedTimestamp4 = Timestamp("f", "50", "34", "55", "24")
 
-        self.assertEqual(len(output),3)
+        self.assertEqual(len(output),4)
         self.assertEqual(output[0],expectedTimestamp1)
         self.assertEqual(output[1],expectedTimestamp2)
-        self.assertEqual(output[0].next,expectedTimestamp3)
-        self.assertEqual(output[2],expectedTimestamp4)
+        self.assertEqual(output[2],expectedTimestamp3)
+        self.assertEqual(output[3],expectedTimestamp4)
 
         
 if __name__ == '__main__':

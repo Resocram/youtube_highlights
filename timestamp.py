@@ -6,21 +6,7 @@ class Timestamp:
         self.endMin = endMin
         self.endSec = endSec
         self.startTime, self.endTime = self.convertTimestampToSeconds()
-        
-        # These are to associate linking timestamps within the same comment
-        self.next = None
-        self.prev = None
-    
-    def head(self):
-        if self.prev:
-            return self.prev.head()
-        return self
-    
-    def tail(self):
-        if self.tail:
-            return self.next.tail()
-        return self
-    
+
     # Custom comparator when comparing timestamps
     def __lt__(self,other):
         return self.startTime < other.startTime
