@@ -227,10 +227,10 @@ if __name__ == "__main__":
             nmClipsIdx = 0
             timerCounter = 0
             # finds the new timestamps in the output video that should not have music
-            for idx, timestamp in enumerate(globalTimestamps):
+            for timestamp in globalTimestamps:
                 lengthClip = timestamp.getLengthOfTimestamp()
                 # if the current clip is a no music clip (only supports no music on regular clips)
-                if noMusicClips[nmClipsIdx] == timestamp.startTime:
+                if nmClipsIdx < len(noMusicClips) and globalTimestamps[nmClipsIdx] == timestamp.startTime:
                     listOfNewNoMusicTimestamps.append((timerCounter, timerCounter + lengthClip))
                     nmClipsIdx += 1
                 if timestamp.command == SLOW:
