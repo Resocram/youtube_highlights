@@ -185,29 +185,31 @@ def processClips(urls, currentDirectory):
         downloadsDirectory = currentDirectory + "/DownloadedClips"
         subs = []
         generator = lambda txt: TextClip(txt, font='Trebuchet MS', fontsize=60, color=colour)
+        
+        videoClip = VideoFileClip(clipPath)
         for timestamp_cc in timestamps_cc:
             colour = "white" if timestamp_cc.command == CLOSED_CAPTIONING else "black"
             subs.append(((timestamp_cc.startTime,timestamp_cc.endTime), timestamp_cc.cc))
-        subtitles = SubtitlesClip(subs, generator)
-        video = VideoFileClip(clipPath)
-        captionedVideoClip = CompositeVideoClip([video, subtitles.set_position(("center",0.8),relative=True)])
+        if len(timestamps_cc) != 0:
+            subtitles = SubtitlesClip(subs, generator)
+            videoClip = CompositeVideoClip([videoClip, subtitles.set_position(("center",0.8),relative=True)])
        
         for timestamp in timestamps:
             if timestamp.command == CLIP:
-                clips.append(captionedVideoClip.subclip(timestamp.startTime, timestamp.endTime))
+                clips.append(videoClip.subclip(timestamp.startTime, timestamp.endTime))
             elif timestamp.command == DOWNLOAD:
                 if not os.path.exists(downloadsDirectory):
                     os.mkdir(downloadsDirectory)
-                downloadClip = captionedVideoClip.subclip(timestamp.startTime, timestamp.endTime)
+                downloadClip = videoClip.subclip(timestamp.startTime, timestamp.endTime)
                 downloadClip.write_videofile(downloadsDirectory + "/" + str(timestamp.startTime) + str(timestamp.endTime) + ".mp4")
                 downloadClip.close()
             elif timestamp.command == NO_MUSIC:
                 # TODO
                 pass
             elif timestamp.command == SLOW:
-                clips.append(captionedVideoClip.subclip(timestamp.startTime, timestamp.endTime).fx(vfx.speedx, 0.3))
+                clips.append(videoClip.subclip(timestamp.startTime, timestamp.endTime).fx(vfx.speedx, 0.3))
         for timestamp_f in timestamps_f:
-            new_clip = captionedVideoClip.subclip(timestamp_f.startTime, timestamp_f.endTime)
+            new_clip = videoClip.subclip(timestamp_f.startTime, timestamp_f.endTime)
             new_clip.audio = None
             clips.append(new_clip.fx(vfx.speedx, 60))
     return clips
@@ -231,11 +233,8 @@ if __name__ == "__main__":
     urls = processUrlInput()
     clips = processClips(urls, currentDirectory)
     finalClip = concatenate_videoclips(clips)
-
     musicAudio = processMusicInput(finalClip.duration)
     if musicAudio is not None:
         new_audioclip = CompositeAudioClip([finalClip.audio, musicAudio]) if finalClip.audio is not None else CompositeAudioClip([musicAudio])
-        finalClip.audio = new_audioclip
-
-    finalClip.write_videofile(outputDirectory + "/" + "output.mp4")
-    
+        finalClip.audio = new_audioclip.subclip(finalClip.start,finalClip.end)
+    finalClip.write_videofile(outputDirectory + "/" + "output.mp4",threads=8)
