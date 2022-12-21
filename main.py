@@ -228,7 +228,9 @@ if __name__ == "__main__":
             for idx, timestamp in enumerate(globalTimestamps):
                 # if the current clip is a no music clip
                 if noMusicClips[nmClipsIdx] == timestamp.startTime:
-                    listOfNewNoMusicTimestamps.append((timerCounter, timerCounter + timestamp.getLengthOfTimestamp))
+                    listOfNewNoMusicTimestamps.append((timerCounter, timerCounter + timestamp.getLengthOfTimestamp()))
+                    nmClipsIdx += 1
+                timerCounter += timestamp.getLengthOfTimestamp()
 
 
     finalClip.write_videofile(outputDirectory + "/" + "output.mp4")
