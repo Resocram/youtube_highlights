@@ -232,7 +232,7 @@ if __name__ == "__main__":
                 if nmClipsIdx >= len(noMusicClips):
                     break
                 # if the current clip is a no music clip (only supports no music on regular clips)
-                if globalTimestamps[nmClipsIdx] == timestamp.startTime:
+                if globalTimestamps[nmClipsIdx].startTime == timestamp.startTime and globalTimestamps[nmClipsIdx].endTime == timestamp.endTime:
                     listOfNewNoMusicTimestamps.append((timerCounter, timerCounter + lengthClip))
                     nmClipsIdx += 1
                 if timestamp.command == SLOW:
