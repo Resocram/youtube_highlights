@@ -20,6 +20,8 @@ API_SERVICE_NAME = 'youtube'
 API_VERSION = 'v3'
 NEW_LINE = '\n'
 EMPTY_DELETE_MESSAGE = "Nothing to delete." + NEW_LINE
+SLOW_MO_RATE = 0.3
+FAST_FORWARD_RATE = 60
 
 CLIP = "c"
 CLIP_NO_MUSIC = "cnm"
@@ -187,13 +189,13 @@ def processClips(urls, currentDirectory):
             elif timestamp.command == FAST_FORWARD:
                 new_clip = VideoFileClip(clipPath).subclip(timestamp.startTime, timestamp.endTime)
                 new_clip.audio = None
-                clips.append(new_clip.fx(vfx.speedx, 60))
+                clips.append(new_clip.fx(vfx.speedx, FAST_FORWARD_RATE))
             elif timestamp.command == CLIP_NO_MUSIC:
                 # use an array to remember all the timestamps that we need to later remove music for
-                noMusicClips = [idx]
+                noMusicClips.append(idx)
                 clips.append(VideoFileClip(clipPath).subclip(timestamp.startTime, timestamp.endTime))
             elif timestamp.command == SLOW:
-                clips.append(VideoFileClip(clipPath).subclip(timestamp.startTime, timestamp.endTime).fx(vfx.speedx, 0.3))
+                clips.append(VideoFileClip(clipPath).subclip(timestamp.startTime, timestamp.endTime).fx(vfx.speedx, SLOW_MO_RATE))
     return clips
 
 if __name__ == "__main__":
@@ -226,11 +228,17 @@ if __name__ == "__main__":
             timerCounter = 0
             # finds the new timestamps in the output video that should not have music
             for idx, timestamp in enumerate(globalTimestamps):
-                # if the current clip is a no music clip
+                lengthClip = timestamp.getLengthOfTimestamp()
+                # if the current clip is a no music clip (only supports no music on regular clips)
                 if noMusicClips[nmClipsIdx] == timestamp.startTime:
-                    listOfNewNoMusicTimestamps.append((timerCounter, timerCounter + timestamp.getLengthOfTimestamp()))
+                    listOfNewNoMusicTimestamps.append((timerCounter, timerCounter + lengthClip))
                     nmClipsIdx += 1
-                timerCounter += timestamp.getLengthOfTimestamp()
+                if timestamp.command == SLOW:
+                    timerCounter += lengthClip / SLOW_MO_RATE
+                elif timestamp.command == FAST_FORWARD:
+                    timerCounter += lengthClip / FAST_FORWARD_RATE
+                else:
+                    timerCounter += lengthClip
 
 
     finalClip.write_videofile(outputDirectory + "/" + "output.mp4")
