@@ -136,20 +136,6 @@ def processMusicInput(clip_len):
         print(e)
         return None
 
-def getAllTimestamps(comments):
-    # Regex to get all matching comments
-    timestamps = []
-    for comment in comments:
-        regex = "\$([a-z]{1,3})\s([0-9]{1,2}):([0-9]{2})-([0-9]{1,2}):([0-9]{2})"
-        groups = re.findall(regex,comment)
-        for group in groups:
-            timestamps.append(Timestamp(*group))
-            
-    # Sort comments by chronological order of the first given timestamp in a comment
-    # We can sort faster by sorting the timestamps upon insertion but that's too much effort and we don't have that many timestamps lol
-    timestamps.sort()
-    return timestamps
-
 CLIP = "c"
 CLOSED_CAPTIONING = "cc"
 CLOSED_CAPTIONING_BLACK = "ccb"
@@ -157,6 +143,34 @@ DOWNLOAD = "d"
 FAST_FORWARD = "f"
 NO_MUSIC = "nm"
 SLOW = "s"
+
+
+# Get all the timestamp in the comments if it matches
+# Returns a tuple of captions of timestamps, timestamps_cc, timestamps_f
+def getAllTimestamps(comments):
+    # Regex to get all matching comments
+    timestamps = []
+    timestamps_cc = []
+    timestamps_f = []
+    for comment in comments:
+        regex = "\$([a-z]{1,3})\s([0-9]{1,2}):([0-9]{2})-([0-9]{1,2}):([0-9]{2})\s*\"*([^$\"]*)\"*"
+        groups = re.findall(regex,comment)
+        for group in groups:
+            if group[0] == CLOSED_CAPTIONING or group[0] == CLOSED_CAPTIONING_BLACK:
+                timestamps_cc.append(Timestamp(*group))
+            elif group[0] == FAST_FORWARD:
+                timestamps_f.append(Timestamp(*group))
+            else:
+                timestamps.append(Timestamp(*group))
+            
+    # Sort comments by chronological order of the first given timestamp in a comment
+    # We can sort faster by sorting the timestamps upon insertion but that's too much effort and we don't have that many timestamps lol
+    timestamps_cc.sort()
+    timestamps_f.sort()
+    timestamps.sort()
+    
+    return (timestamps,timestamps_cc,timestamps_f)
+
 
 def processClips(urls, currentDirectory):
     clips = []
@@ -166,31 +180,36 @@ def processClips(urls, currentDirectory):
 
         downloadVideo(videoDirectory, videoId, url)
         comments = getComments(service, videoId)
-        timestamps = getAllTimestamps(comments)
+        timestamps,timestamps_cc,timestamps_f = getAllTimestamps(comments)
         clipPath = videoDirectory + "/" + videoId + ".mp4"
         downloadsDirectory = currentDirectory + "/DownloadedClips"
-        
+        subs = []
+        generator = lambda txt: TextClip(txt, font='Trebuchet MS', fontsize=60, color=colour)
+        for timestamp_cc in timestamps_cc:
+            colour = "white" if timestamp_cc.command == CLOSED_CAPTIONING else "black"
+            subs.append(((timestamp_cc.startTime,timestamp_cc.endTime), timestamp_cc.cc))
+        subtitles = SubtitlesClip(subs, generator)
+        video = VideoFileClip(clipPath)
+        captionedVideoClip = CompositeVideoClip([video, subtitles.set_position(("center",0.8),relative=True)])
+       
         for timestamp in timestamps:
             if timestamp.command == CLIP:
-                clips.append(VideoFileClip(clipPath).subclip(timestamp.startTime, timestamp.endTime))
-            elif timestamp.command == CLOSED_CAPTIONING:
-                # TODO
-                pass
+                clips.append(captionedVideoClip.subclip(timestamp.startTime, timestamp.endTime))
             elif timestamp.command == DOWNLOAD:
                 if not os.path.exists(downloadsDirectory):
                     os.mkdir(downloadsDirectory)
-                downloadClip = VideoFileClip(clipPath).subclip(timestamp.startTime, timestamp.endTime)
+                downloadClip = captionedVideoClip.subclip(timestamp.startTime, timestamp.endTime)
                 downloadClip.write_videofile(downloadsDirectory + "/" + str(timestamp.startTime) + str(timestamp.endTime) + ".mp4")
                 downloadClip.close()
-            elif timestamp.command == FAST_FORWARD:
-                new_clip = VideoFileClip(clipPath).subclip(timestamp.startTime, timestamp.endTime)
-                new_clip.audio = None
-                clips.append(new_clip.fx(vfx.speedx, 60))
             elif timestamp.command == NO_MUSIC:
                 # TODO
                 pass
             elif timestamp.command == SLOW:
-                clips.append(VideoFileClip(clipPath).subclip(timestamp.startTime, timestamp.endTime).fx(vfx.speedx, 0.3))
+                clips.append(captionedVideoClip.subclip(timestamp.startTime, timestamp.endTime).fx(vfx.speedx, 0.3))
+        for timestamp_f in timestamps_f:
+            new_clip = captionedVideoClip.subclip(timestamp_f.startTime, timestamp_f.endTime)
+            new_clip.audio = None
+            clips.append(new_clip.fx(vfx.speedx, 60))
     return clips
 
 if __name__ == "__main__":
@@ -219,5 +238,4 @@ if __name__ == "__main__":
         finalClip.audio = new_audioclip
 
     finalClip.write_videofile(outputDirectory + "/" + "output.mp4")
-
     

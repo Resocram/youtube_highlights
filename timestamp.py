@@ -1,11 +1,12 @@
 class Timestamp:
-    def __init__(self,command,startMin,startSec,endMin,endSec):
+    def __init__(self,command,startMin,startSec,endMin,endSec,cc = None):
         self.command = command
         self.startMin = startMin
         self.startSec = startSec
         self.endMin = endMin
         self.endSec = endSec
         self.startTime, self.endTime = self.convertTimestampToSeconds()
+        self.cc = cc
 
     # Custom comparator when comparing timestamps
     def __lt__(self,other):
