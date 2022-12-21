@@ -21,6 +21,13 @@ API_VERSION = 'v3'
 NEW_LINE = '\n'
 EMPTY_DELETE_MESSAGE = "Nothing to delete." + NEW_LINE
 
+CLIP = "c"
+CLIP_NO_MUSIC = "cnm"
+CLOSED_CAPTIONING = "cc"
+CLOSED_CAPTIONING_BLACK = "ccb"
+DOWNLOAD = "d"
+FAST_FORWARD = "f"
+SLOW = "s"
 
 def getAuthenticatedService():
     credentials = None
@@ -144,19 +151,14 @@ def getAllTimestamps(comments):
         groups = re.findall(regex,comment)
         for group in groups:
             timestamps.append(Timestamp(*group))
-            
+
     # Sort comments by chronological order of the first given timestamp in a comment
     # We can sort faster by sorting the timestamps upon insertion but that's too much effort and we don't have that many timestamps lol
     timestamps.sort()
     return timestamps
 
-CLIP = "c"
-CLOSED_CAPTIONING = "cc"
-CLOSED_CAPTIONING_BLACK = "ccb"
-DOWNLOAD = "d"
-FAST_FORWARD = "f"
-NO_MUSIC = "nm"
-SLOW = "s"
+noMusicClips = []
+globalTimestamps = []
 
 def processClips(urls, currentDirectory):
     clips = []
@@ -166,11 +168,11 @@ def processClips(urls, currentDirectory):
 
         downloadVideo(videoDirectory, videoId, url)
         comments = getComments(service, videoId)
-        timestamps = getAllTimestamps(comments)
+        globalTimestamps = getAllTimestamps(comments)
         clipPath = videoDirectory + "/" + videoId + ".mp4"
         downloadsDirectory = currentDirectory + "/DownloadedClips"
-        
-        for timestamp in timestamps:
+
+        for idx, timestamp in enumerate(globalTimestamps):
             if timestamp.command == CLIP:
                 clips.append(VideoFileClip(clipPath).subclip(timestamp.startTime, timestamp.endTime))
             elif timestamp.command == CLOSED_CAPTIONING:
@@ -186,9 +188,10 @@ def processClips(urls, currentDirectory):
                 new_clip = VideoFileClip(clipPath).subclip(timestamp.startTime, timestamp.endTime)
                 new_clip.audio = None
                 clips.append(new_clip.fx(vfx.speedx, 60))
-            elif timestamp.command == NO_MUSIC:
-                # TODO
-                pass
+            elif timestamp.command == CLIP_NO_MUSIC:
+                # use an array to remember all the timestamps that we need to later remove music for
+                noMusicClips = [idx]
+                clips.append(VideoFileClip(clipPath).subclip(timestamp.startTime, timestamp.endTime))
             elif timestamp.command == SLOW:
                 clips.append(VideoFileClip(clipPath).subclip(timestamp.startTime, timestamp.endTime).fx(vfx.speedx, 0.3))
     return clips
@@ -217,7 +220,16 @@ if __name__ == "__main__":
     if musicAudio is not None:
         new_audioclip = CompositeAudioClip([finalClip.audio, musicAudio]) if finalClip.audio is not None else CompositeAudioClip([musicAudio])
         finalClip.audio = new_audioclip
+        if len(noMusicClips) > 0:
+            listOfNewNoMusicTimestamps = []
+            nmClipsIdx = 0
+            timerCounter = 0
+            # finds the new timestamps in the output video that should not have music
+            for idx, timestamp in enumerate(globalTimestamps):
+                # if the current clip is a no music clip
+                if noMusicClips[nmClipsIdx] == timestamp.startTime:
+                    listOfNewNoMusicTimestamps.append((timerCounter, timerCounter + timestamp.getLengthOfTimestamp))
+
 
     finalClip.write_videofile(outputDirectory + "/" + "output.mp4")
 
-    
