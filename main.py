@@ -9,6 +9,9 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import youtube_dl
 import datetime
+import re
+from timestamp import Timestamp
+from moviepy.video.tools.subtitles import SubtitlesClip
 
 CLIENT_SECRETS_FILE = os.path.dirname(
     os.path.realpath(__file__)) + "/client_secret.json"
@@ -82,80 +85,6 @@ def getComments(service, videoId):
     print("Comments found: " + str(comments) + NEW_LINE)
     return comments
 
-# Only supports comments in this format $c xx:xx-yy:yy
-def getTimestamps(comments):
-    timestamps = []
-    for comment in comments:
-        try:
-            if comment[0:2] == '$c':
-                timestamp = (comment[3:8], comment[9:14])
-                seconds = convertTimestampToSeconds(timestamp)
-                if seconds is not None:
-                    timestamps.append(seconds)
-        except:
-            pass
-
-    print("Timestamps found: " + str(timestamps) + NEW_LINE)
-    return timestamps
-
-# Only supports comments in this format $cs xx:xx-yy:yy aa:aa-bb:bb
-def getSlowMotionTimestamps(comments):
-    timestamps = []
-    for comment in comments:
-        try:
-            if comment[0:3] == '$cs':
-                timestamp = ((comment[4:9], comment[10:15]), (comment[16:21], comment[22:27]))
-                seconds = (convertTimestampToSeconds(timestamp[0]), convertTimestampToSeconds(timestamp[1]))
-                if seconds is not None and seconds[0] is not None and seconds[1] is not None:
-                    timestamps.append(seconds)
-        except:
-            pass
-
-    print("Slow motion timestamps found: " + str(timestamps) + NEW_LINE)
-    return timestamps
-
-# Only supports comments in this format $d xx:xx-yy:yy
-def getDownloadTimestamps(comments):
-    timestamps = []
-    for comment in comments:
-        try:
-            if comment[0:2] == '$d':
-                timestamp = (comment[3:8], comment[9:14])
-                seconds = convertTimestampToSeconds(timestamp)
-                if seconds is not None:
-                    timestamps.append(seconds)
-        except:
-            pass
-
-    print("Download timestamps found: " + str(timestamps) + NEW_LINE)
-    return timestamps
-
-# Only supports comments in this format $f xx:xx-yy:yy
-# f for fast forward
-def getTimeLapseTimestamps(comments):
-    timestamps = []
-
-    for comment in comments:
-        try:
-            if comment[0:2] == '$f':
-                timestamp = (comment[3:8], comment[9:14])
-                seconds = convertTimestampToSeconds(timestamp)
-                if seconds is not None:
-                    timestamps.append(seconds)
-        except:
-            pass
-
-    print("Time lapse timestamps found: " + str(timestamps) + NEW_LINE)
-    return timestamps
-
-def convertTimestampToSeconds(timestamp):
-    try:
-        startTime = int(timestamp[0][0:2])*60 + int(timestamp[0][3:5])
-        endTime = int(timestamp[1][0:2])*60 + int(timestamp[1][3:5])
-        return startTime, endTime
-    except:
-        pass
-
 def processUrlInput():
     urls = []
     while True:
@@ -207,6 +136,28 @@ def processMusicInput(clip_len):
         print(e)
         return None
 
+def getAllTimestamps(comments):
+    # Regex to get all matching comments
+    timestamps = []
+    for comment in comments:
+        regex = "\$([a-z]{1,3})\s([0-9]{1,2}):([0-9]{2})-([0-9]{1,2}):([0-9]{2})"
+        groups = re.findall(regex,comment)
+        for group in groups:
+            timestamps.append(Timestamp(*group))
+            
+    # Sort comments by chronological order of the first given timestamp in a comment
+    # We can sort faster by sorting the timestamps upon insertion but that's too much effort and we don't have that many timestamps lol
+    timestamps.sort()
+    return timestamps
+
+CLIP = "c"
+CLOSED_CAPTIONING = "cc"
+CLOSED_CAPTIONING_BLACK = "ccb"
+DOWNLOAD = "d"
+FAST_FORWARD = "f"
+NO_MUSIC = "nm"
+SLOW = "s"
+
 def processClips(urls, currentDirectory):
     clips = []
     for idx, url in enumerate(urls):
@@ -215,31 +166,31 @@ def processClips(urls, currentDirectory):
 
         downloadVideo(videoDirectory, videoId, url)
         comments = getComments(service, videoId)
-
-        timestamps = getTimestamps(comments)
-        for timestamp in timestamps:
-            clips.append(VideoFileClip(videoDirectory + "/" + videoId + ".mp4").subclip(timestamp[0], timestamp[1]))
-
-        slowMotionTimeStamps = getSlowMotionTimestamps(comments)
-        for timestamp in slowMotionTimeStamps:
-            clips.append(VideoFileClip(videoDirectory + "/" + videoId + ".mp4").subclip(timestamp[0][0], timestamp[0][1]))
-            clips.append(VideoFileClip(videoDirectory + "/" + videoId + ".mp4").subclip(timestamp[1][0], timestamp[1][1]).fx(vfx.speedx, 0.3))
-
-        downloadTimeStamps = getDownloadTimestamps(comments)
+        timestamps = getAllTimestamps(comments)
+        clipPath = videoDirectory + "/" + videoId + ".mp4"
         downloadsDirectory = currentDirectory + "/DownloadedClips"
-        if not os.path.exists(downloadsDirectory):
-            os.mkdir(downloadsDirectory)
-        for timestamp in downloadTimeStamps:
-            downloadClip = VideoFileClip(videoDirectory + "/" + videoId + ".mp4").subclip(timestamp[0], timestamp[1])
-            downloadClip.write_videofile(downloadsDirectory + "/" + str(timestamp[0]) + str(timestamp[1]) + ".mp4")
-            downloadClip.close()
-
-        timelapseTimeStamps = getTimeLapseTimestamps(comments)
-        for timestamp in timelapseTimeStamps:
-            new_clip = VideoFileClip(videoDirectory + "/" + videoId + ".mp4").subclip(timestamp[0], timestamp[1])
-            new_clip.audio = None
-            clips.append(new_clip.fx(vfx.speedx, 60))
-
+        
+        for timestamp in timestamps:
+            if timestamp.command == CLIP:
+                clips.append(VideoFileClip(clipPath).subclip(timestamp.startTime, timestamp.endTime))
+            elif timestamp.command == CLOSED_CAPTIONING:
+                # TODO
+                pass
+            elif timestamp.command == DOWNLOAD:
+                if not os.path.exists(downloadsDirectory):
+                    os.mkdir(downloadsDirectory)
+                downloadClip = VideoFileClip(clipPath).subclip(timestamp.startTime, timestamp.endTime)
+                downloadClip.write_videofile(downloadsDirectory + "/" + str(timestamp.startTime) + str(timestamp.endTime) + ".mp4")
+                downloadClip.close()
+            elif timestamp.command == FAST_FORWARD:
+                new_clip = VideoFileClip(clipPath).subclip(timestamp.startTime, timestamp.endTime)
+                new_clip.audio = None
+                clips.append(new_clip.fx(vfx.speedx, 60))
+            elif timestamp.command == NO_MUSIC:
+                # TODO
+                pass
+            elif timestamp.command == SLOW:
+                clips.append(VideoFileClip(clipPath).subclip(timestamp.startTime, timestamp.endTime).fx(vfx.speedx, 0.3))
     return clips
 
 if __name__ == "__main__":
@@ -268,3 +219,5 @@ if __name__ == "__main__":
         finalClip.audio = new_audioclip
 
     finalClip.write_videofile(outputDirectory + "/" + "output.mp4")
+
+    
