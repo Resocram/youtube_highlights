@@ -263,7 +263,6 @@ if __name__ == "__main__":
             musicAudio = removeNoMusicDurations(musicAudio,noMusicDurations)
         new_audioclip = CompositeAudioClip([finalClip.audio, musicAudio]) if finalClip.audio is not None else CompositeAudioClip([musicAudio])
         finalClip.audio = new_audioclip.subclip(finalClip.start,finalClip.end)
-    finalClip = finalClip.fx(vfx.fadeout,FADEWAY_TIME)
     finalClip.audio = finalClip.audio.fx(afx.audio_fadeout,FADEWAY_TIME)
     finalClip.write_videofile(outputDirectory + "/" + "output.mp4",threads=8)
 
