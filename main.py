@@ -136,8 +136,6 @@ def processMusicInput(clip_len):
             videoId = getVideoId(url)
             downloadMusic(musicDirectory, videoId, url)
             audioClips.append(AudioFileClip(musicDirectory + "/" + videoId + ".mp3"))
-        # if len(audioClips) != 0:
-        #     audioClips[-1].fx(afx.audio_fadeout,"00:00:05")
         return concatenate_audioclips(audioClips) if len(audioClips) > 0 else None
 
     except Exception as e:
@@ -232,7 +230,7 @@ def removeNoMusicDurations(musicAudio,noMusicDurations):
     for noMusicDuration in noMusicDurations:
         start = noMusicDuration[0]
         end = noMusicDuration[1]
-        musicAudio =  concatenate_audioclips([musicAudio.subclip(0,start),musicAudio.subclip(start,end).fl(lambda gf,t: 0, apply_to='audio'),musicAudio.subclip(end,musicAudio.duration)])
+        musicAudio =  concatenate_audioclips([musicAudio.subclip(0,start),musicAudio.subclip(start,end).fx(afx.volumex,0),musicAudio.subclip(end,musicAudio.duration)])
     return musicAudio
 
 if __name__ == "__main__":
