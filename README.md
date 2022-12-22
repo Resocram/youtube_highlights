@@ -27,6 +27,9 @@ Get comments from youtube video that follow a specific time stamp format. Clip t
 #### clip ($c)
 - format: `$c xx:xx-yy:yy`. Note that times like 1:24 can be written as either 01:24 or 1:24
 
+#### clip and no music($cnm)
+- format: `$cnm xx:xx-yy:yy`. Play a clip without music 
+
 #### download ($d) - dev only command
 - format: `$d xx:xx-yy:yy`
 - downloads the timestamp/clip to /DownloadedClips
