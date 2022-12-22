@@ -1,6 +1,5 @@
 import os
 import pickle
-from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_videoclips, concatenate_audioclips
 from moviepy.editor import *
 import moviepy.video.fx.all as vfx
 from googleapiclient.discovery import build
@@ -21,12 +20,13 @@ API_VERSION = 'v3'
 NEW_LINE = '\n'
 EMPTY_DELETE_MESSAGE = "Nothing to delete." + NEW_LINE
 SLOW_MO_RATE = 0.3
+FADEWAY_TIME = 3
 FAST_FORWARD_RATE = 60
+MUSIC_LOUDNESS_FACTOR = 0.4
 
 CLIP = "c"
 CLIP_NO_MUSIC = "cnm"
 CLOSED_CAPTIONING = "cc"
-CLOSED_CAPTIONING_BLACK = "ccb"
 DOWNLOAD = "d"
 FAST_FORWARD = "f"
 SLOW = "s"
@@ -137,7 +137,8 @@ def processMusicInput(clip_len):
             videoId = getVideoId(url)
             downloadMusic(musicDirectory, videoId, url)
             audioClips.append(AudioFileClip(musicDirectory + "/" + videoId + ".mp3"))
-
+        # if len(audioClips) != 0:
+        #     audioClips[-1].fx(afx.audio_fadeout,"00:00:05")
         return concatenate_audioclips(audioClips) if len(audioClips) > 0 else None
 
     except Exception as e:
@@ -156,7 +157,7 @@ def getAllTimestamps(comments):
         regex = "\$([a-z]{1,3})\s([0-9]{1,2}):([0-9]{2})-([0-9]{1,2}):([0-9]{2})\s*\"*([^$\"]*)\"*"
         groups = re.findall(regex,comment)
         for group in groups:
-            if group[0] == CLOSED_CAPTIONING or group[0] == CLOSED_CAPTIONING_BLACK:
+            if group[0] == CLOSED_CAPTIONING:
                 timestamps_cc.append(Timestamp(*group))
             elif group[0] == FAST_FORWARD:
                 timestamps_f.append(Timestamp(*group))
@@ -184,16 +185,14 @@ def processClips(urls, currentDirectory):
         timestamps,timestamps_cc,timestamps_f = getAllTimestamps(comments)
         clipPath = videoDirectory + "/" + videoId + ".mp4"
         downloadsDirectory = currentDirectory + "/DownloadedClips"
-        subs = []
-        generator = lambda txt: TextClip(txt, font='Trebuchet MS', fontsize=60, color=colour)
-        
+        subs = []        
         videoClip = VideoFileClip(clipPath)
         for timestamp_cc in timestamps_cc:
-            colour = "white" if timestamp_cc.command == CLOSED_CAPTIONING else "black"
             subs.append(((timestamp_cc.startTime,timestamp_cc.endTime), timestamp_cc.cc))
         if len(timestamps_cc) != 0:
+            generator = lambda txt: TextClip(txt, font='Trebuchet MS', fontsize=60, color="white",stroke_color = "black",stroke_width = 2)
             subtitles = SubtitlesClip(subs, generator)
-            videoClip = CompositeVideoClip([videoClip, subtitles.set_position(("center",0.8),relative=True)])
+            videoClip = CompositeVideoClip([videoClip, subtitles.set_position(("center",0.9),relative=True)])
        
         for timestamp in timestamps:
             if timestamp.command == CLIP:
@@ -216,15 +215,13 @@ def processClips(urls, currentDirectory):
     return clips, noMusicIndices
 
 def processNoMusicIndices(clips, noMusicIndices):
-    print(len(clips))
     duration = 0
     noMusicIndex = 0
     i = 0
     durations = []
-    print(noMusicIndices)
+    if len(noMusicIndices) == 0:
+        return durations
     while i <= noMusicIndices[-1]:
-        print(clips[i].__dict__)
-        print(duration)
         if i == noMusicIndices[noMusicIndex]:
              durations.append((duration,duration+clips[i].duration))
              noMusicIndex +=1
@@ -261,9 +258,12 @@ if __name__ == "__main__":
     finalClip = concatenate_videoclips(clips)
     musicAudio = processMusicInput(finalClip.duration)
     if musicAudio is not None:
+        musicAudio = musicAudio.fx(afx.volumex,MUSIC_LOUDNESS_FACTOR)
         if len(noMusicDurations) != 0:
             musicAudio = removeNoMusicDurations(musicAudio,noMusicDurations)
         new_audioclip = CompositeAudioClip([finalClip.audio, musicAudio]) if finalClip.audio is not None else CompositeAudioClip([musicAudio])
         finalClip.audio = new_audioclip.subclip(finalClip.start,finalClip.end)
+    finalClip = finalClip.fx(vfx.fadeout,FADEWAY_TIME)
+    finalClip.audio = finalClip.audio.fx(afx.audio_fadeout,FADEWAY_TIME)
     finalClip.write_videofile(outputDirectory + "/" + "output.mp4",threads=8)
 
