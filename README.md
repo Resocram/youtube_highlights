@@ -9,20 +9,26 @@ Get comments from youtube video that follow a specific time stamp format. Clip t
 ### Set Up
 1. run `pip install -r requirements.txt`
 2. add client_secrets.json file with the correct credentials (contact developer for more info)
-3. run `python main.py`
-4. prompted to authenticate on gmail
-5. copy paste token to terminal
-6. download ffmpeg and add to environment variable (required by the library that is used to download YT video)
+3. download ffmpeg and add to environment variable (required by the library that is used to download YT video)
+4. install imagemagick, follow the instructions shown [here]("https://imagemagick.org/script/download.php")
+5. run `python main.py`
+6. prompted to authenticate on gmail
+7. copy paste token to terminal
 
 ### How to use - dev
 1. enter links, press enter after each link
 2. press f to start generating highlights
 3. after the highlight video has been processed, the program will ask if you would like to add music to the video. Enter an arbitrary number of youtube links if you want to include the audio or enter f to skip
-- note that if the music/audio is longer than the highlight video length, it will just result in a still image and the highlights video being dragged out longer. It's preferable to have music that is shorter than or equal in length to the highlight video.
 
 ### How to use - user
+#### captions ($cc)
+- format: `$cc xx:xx-yy:yy "insert text here"`. Text within quotations can not contain " or $.
+
 #### clip ($c)
 - format: `$c xx:xx-yy:yy`. Note that times like 1:24 can be written as either 01:24 or 1:24
+
+#### clip and no music($cnm)
+- format: `$cnm xx:xx-yy:yy`. Play a clip without music 
 
 #### download ($d) - dev only command
 - format: `$d xx:xx-yy:yy`

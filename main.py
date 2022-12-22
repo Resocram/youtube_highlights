@@ -1,6 +1,5 @@
 import os
 import pickle
-from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_videoclips, concatenate_audioclips
 from moviepy.editor import *
 import moviepy.video.fx.all as vfx
 from googleapiclient.discovery import build
@@ -20,7 +19,17 @@ API_SERVICE_NAME = 'youtube'
 API_VERSION = 'v3'
 NEW_LINE = '\n'
 EMPTY_DELETE_MESSAGE = "Nothing to delete." + NEW_LINE
+SLOW_MO_RATE = 0.3
+FADEWAY_TIME = 3
+FAST_FORWARD_RATE = 60
+MUSIC_LOUDNESS_FACTOR = 0.4
 
+CLIP = "c"
+CLIP_NO_MUSIC = "cnm"
+CLOSED_CAPTIONING = "cc"
+DOWNLOAD = "d"
+FAST_FORWARD = "f"
+SLOW = "s"
 
 def getAuthenticatedService():
     credentials = None
@@ -107,7 +116,6 @@ def processUrlInput():
 def processMusicInput(clip_len):
     try:
         print("The final clip is " + str(clip_len) + " seconds, or " + str(datetime.timedelta(seconds=int(clip_len))) + ", if you would like to add an audio clip, enter the youtube link. Type d to delete previously added music. Otherwise, type f.")
-        print("The music video should be equal or shorter in length than the video." + NEW_LINE + NEW_LINE)
         urls = []
         while True:
             command = input()
@@ -128,22 +136,12 @@ def processMusicInput(clip_len):
             videoId = getVideoId(url)
             downloadMusic(musicDirectory, videoId, url)
             audioClips.append(AudioFileClip(musicDirectory + "/" + videoId + ".mp3"))
-
         return concatenate_audioclips(audioClips) if len(audioClips) > 0 else None
 
     except Exception as e:
         print("Problem in music processing")
         print(e)
         return None
-
-CLIP = "c"
-CLOSED_CAPTIONING = "cc"
-CLOSED_CAPTIONING_BLACK = "ccb"
-DOWNLOAD = "d"
-FAST_FORWARD = "f"
-NO_MUSIC = "nm"
-SLOW = "s"
-
 
 # Get all the timestamp in the comments if it matches
 # Returns a tuple of captions of timestamps, timestamps_cc, timestamps_f
@@ -156,7 +154,7 @@ def getAllTimestamps(comments):
         regex = "\$([a-z]{1,3})\s([0-9]{1,2}):([0-9]{2})-([0-9]{1,2}):([0-9]{2})\s*\"*([^$\"]*)\"*"
         groups = re.findall(regex,comment)
         for group in groups:
-            if group[0] == CLOSED_CAPTIONING or group[0] == CLOSED_CAPTIONING_BLACK:
+            if group[0] == CLOSED_CAPTIONING:
                 timestamps_cc.append(Timestamp(*group))
             elif group[0] == FAST_FORWARD:
                 timestamps_f.append(Timestamp(*group))
@@ -174,6 +172,7 @@ def getAllTimestamps(comments):
 
 def processClips(urls, currentDirectory):
     clips = []
+    noMusicIndices = []
     for idx, url in enumerate(urls):
         print("Handling video: " + str(idx + 1) + ", " + str(url) + NEW_LINE)
         videoId = getVideoId(url)
@@ -183,16 +182,14 @@ def processClips(urls, currentDirectory):
         timestamps,timestamps_cc,timestamps_f = getAllTimestamps(comments)
         clipPath = videoDirectory + "/" + videoId + ".mp4"
         downloadsDirectory = currentDirectory + "/DownloadedClips"
-        subs = []
-        generator = lambda txt: TextClip(txt, font='Trebuchet MS', fontsize=60, color=colour)
-        
+        subs = []        
         videoClip = VideoFileClip(clipPath)
         for timestamp_cc in timestamps_cc:
-            colour = "white" if timestamp_cc.command == CLOSED_CAPTIONING else "black"
             subs.append(((timestamp_cc.startTime,timestamp_cc.endTime), timestamp_cc.cc))
         if len(timestamps_cc) != 0:
+            generator = lambda txt: TextClip(txt, font='Trebuchet MS', fontsize=60, color="white",stroke_color = "black",stroke_width = 2)
             subtitles = SubtitlesClip(subs, generator)
-            videoClip = CompositeVideoClip([videoClip, subtitles.set_position(("center",0.8),relative=True)])
+            videoClip = CompositeVideoClip([videoClip, subtitles.set_position(("center",0.9),relative=True)])
        
         for timestamp in timestamps:
             if timestamp.command == CLIP:
@@ -203,16 +200,38 @@ def processClips(urls, currentDirectory):
                 downloadClip = videoClip.subclip(timestamp.startTime, timestamp.endTime)
                 downloadClip.write_videofile(downloadsDirectory + "/" + str(timestamp.startTime) + str(timestamp.endTime) + ".mp4")
                 downloadClip.close()
-            elif timestamp.command == NO_MUSIC:
-                # TODO
-                pass
+            elif timestamp.command == CLIP_NO_MUSIC:
+                noMusicIndices.append(len(clips))
+                clips.append(videoClip.subclip(timestamp.startTime, timestamp.endTime))
             elif timestamp.command == SLOW:
                 clips.append(videoClip.subclip(timestamp.startTime, timestamp.endTime).fx(vfx.speedx, 0.3))
         for timestamp_f in timestamps_f:
             new_clip = videoClip.subclip(timestamp_f.startTime, timestamp_f.endTime)
             new_clip.audio = None
             clips.append(new_clip.fx(vfx.speedx, 60))
-    return clips
+    return clips, noMusicIndices
+
+def processNoMusicIndices(clips, noMusicIndices):
+    duration = 0
+    noMusicIndex = 0
+    i = 0
+    durations = []
+    if len(noMusicIndices) == 0:
+        return durations
+    while i <= noMusicIndices[-1]:
+        if i == noMusicIndices[noMusicIndex]:
+             durations.append((duration,duration+clips[i].duration))
+             noMusicIndex +=1
+        duration += clips[i].duration
+        i += 1
+    return durations
+
+def removeNoMusicDurations(musicAudio,noMusicDurations):
+    for noMusicDuration in noMusicDurations:
+        start = noMusicDuration[0]
+        end = noMusicDuration[1]
+        musicAudio =  concatenate_audioclips([musicAudio.subclip(0,start),musicAudio.subclip(start,end).fx(afx.volumex,0),musicAudio.subclip(end,musicAudio.duration)])
+    return musicAudio
 
 if __name__ == "__main__":
     # When running locally, disable OAuthlib's HTTPs verification.
@@ -231,10 +250,16 @@ if __name__ == "__main__":
         os.mkdir(musicDirectory)
 
     urls = processUrlInput()
-    clips = processClips(urls, currentDirectory)
+    clips, noMusicIndices = processClips(urls, currentDirectory)
+    noMusicDurations = processNoMusicIndices(clips,noMusicIndices)
     finalClip = concatenate_videoclips(clips)
     musicAudio = processMusicInput(finalClip.duration)
     if musicAudio is not None:
+        musicAudio = musicAudio.fx(afx.volumex,MUSIC_LOUDNESS_FACTOR)
+        if len(noMusicDurations) != 0:
+            musicAudio = removeNoMusicDurations(musicAudio,noMusicDurations)
         new_audioclip = CompositeAudioClip([finalClip.audio, musicAudio]) if finalClip.audio is not None else CompositeAudioClip([musicAudio])
         finalClip.audio = new_audioclip.subclip(finalClip.start,finalClip.end)
+    finalClip.audio = finalClip.audio.fx(afx.audio_fadeout,FADEWAY_TIME)
     finalClip.write_videofile(outputDirectory + "/" + "output.mp4",threads=8)
+
