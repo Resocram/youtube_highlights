@@ -116,7 +116,6 @@ def processUrlInput():
 def processMusicInput(clip_len):
     try:
         print("The final clip is " + str(clip_len) + " seconds, or " + str(datetime.timedelta(seconds=int(clip_len))) + ", if you would like to add an audio clip, enter the youtube link. Type d to delete previously added music. Otherwise, type f.")
-        print("The music video should be equal or shorter in length than the video." + NEW_LINE + NEW_LINE)
         urls = []
         while True:
             command = input()
