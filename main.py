@@ -20,7 +20,16 @@ API_SERVICE_NAME = 'youtube'
 API_VERSION = 'v3'
 NEW_LINE = '\n'
 EMPTY_DELETE_MESSAGE = "Nothing to delete." + NEW_LINE
+SLOW_MO_RATE = 0.3
+FAST_FORWARD_RATE = 60
 
+CLIP = "c"
+CLIP_NO_MUSIC = "cnm"
+CLOSED_CAPTIONING = "cc"
+CLOSED_CAPTIONING_BLACK = "ccb"
+DOWNLOAD = "d"
+FAST_FORWARD = "f"
+SLOW = "s"
 
 def getAuthenticatedService():
     credentials = None
@@ -136,15 +145,6 @@ def processMusicInput(clip_len):
         print(e)
         return None
 
-CLIP = "c"
-CLOSED_CAPTIONING = "cc"
-CLOSED_CAPTIONING_BLACK = "ccb"
-DOWNLOAD = "d"
-FAST_FORWARD = "f"
-NO_MUSIC = "nm"
-SLOW = "s"
-
-
 # Get all the timestamp in the comments if it matches
 # Returns a tuple of captions of timestamps, timestamps_cc, timestamps_f
 def getAllTimestamps(comments):
@@ -174,6 +174,7 @@ def getAllTimestamps(comments):
 
 def processClips(urls, currentDirectory):
     clips = []
+    noMusicIndices = []
     for idx, url in enumerate(urls):
         print("Handling video: " + str(idx + 1) + ", " + str(url) + NEW_LINE)
         videoId = getVideoId(url)
@@ -203,16 +204,40 @@ def processClips(urls, currentDirectory):
                 downloadClip = videoClip.subclip(timestamp.startTime, timestamp.endTime)
                 downloadClip.write_videofile(downloadsDirectory + "/" + str(timestamp.startTime) + str(timestamp.endTime) + ".mp4")
                 downloadClip.close()
-            elif timestamp.command == NO_MUSIC:
-                # TODO
-                pass
+            elif timestamp.command == CLIP_NO_MUSIC:
+                noMusicIndices.append(len(clips))
+                clips.append(videoClip.subclip(timestamp.startTime, timestamp.endTime))
             elif timestamp.command == SLOW:
                 clips.append(videoClip.subclip(timestamp.startTime, timestamp.endTime).fx(vfx.speedx, 0.3))
         for timestamp_f in timestamps_f:
             new_clip = videoClip.subclip(timestamp_f.startTime, timestamp_f.endTime)
             new_clip.audio = None
             clips.append(new_clip.fx(vfx.speedx, 60))
-    return clips
+    return clips, noMusicIndices
+
+def processNoMusicIndices(clips, noMusicIndices):
+    print(len(clips))
+    duration = 0
+    noMusicIndex = 0
+    i = 0
+    durations = []
+    print(noMusicIndices)
+    while i <= noMusicIndices[-1]:
+        print(clips[i].__dict__)
+        print(duration)
+        if i == noMusicIndices[noMusicIndex]:
+             durations.append((duration,duration+clips[i].duration))
+             noMusicIndex +=1
+        duration += clips[i].duration
+        i += 1
+    return durations
+
+def removeNoMusicDurations(musicAudio,noMusicDurations):
+    for noMusicDuration in noMusicDurations:
+        start = noMusicDuration[0]
+        end = noMusicDuration[1]
+        musicAudio =  concatenate_audioclips([musicAudio.subclip(0,start),musicAudio.subclip(start,end).fl(lambda gf,t: 0, apply_to='audio'),musicAudio.subclip(end,musicAudio.duration)])
+    return musicAudio
 
 if __name__ == "__main__":
     # When running locally, disable OAuthlib's HTTPs verification.
@@ -231,10 +256,14 @@ if __name__ == "__main__":
         os.mkdir(musicDirectory)
 
     urls = processUrlInput()
-    clips = processClips(urls, currentDirectory)
+    clips, noMusicIndices = processClips(urls, currentDirectory)
+    noMusicDurations = processNoMusicIndices(clips,noMusicIndices)
     finalClip = concatenate_videoclips(clips)
     musicAudio = processMusicInput(finalClip.duration)
     if musicAudio is not None:
+        if len(noMusicDurations) != 0:
+            musicAudio = removeNoMusicDurations(musicAudio,noMusicDurations)
         new_audioclip = CompositeAudioClip([finalClip.audio, musicAudio]) if finalClip.audio is not None else CompositeAudioClip([musicAudio])
         finalClip.audio = new_audioclip.subclip(finalClip.start,finalClip.end)
     finalClip.write_videofile(outputDirectory + "/" + "output.mp4",threads=8)
+
