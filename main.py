@@ -61,7 +61,6 @@ def downloadVideo(directory, filename, url):
             filename = info_dict.get('title', None)
 
     if not os.path.exists(directory + "/" + filename + ".mp4"):
-        # 137 is 1920x1080 don't ask me how it just is
         ydl_opts = {'format_sort': ['res:1080', 'ext:mp4:m4a'],
                     'outtmpl': directory + "/" + filename}
         with YoutubeDL(ydl_opts) as ydl:
