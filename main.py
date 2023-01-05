@@ -31,6 +31,9 @@ DOWNLOAD = "d"
 FAST_FORWARD = "f"
 SLOW = "s"
 
+# FLAGS
+VIDEO_FILE_NAME_IS_YT_TITLE = False
+
 def getAuthenticatedService():
     credentials = None
     if os.path.exists('token.pickle'):
@@ -52,12 +55,19 @@ def getAuthenticatedService():
 
 
 def downloadVideo(directory, filename, url):
+    if VIDEO_FILE_NAME_IS_YT_TITLE:
+        with YoutubeDL() as ydl:
+            info_dict = ydl.extract_info(url, download=False)
+            filename = info_dict.get('title', None)
+
     if not os.path.exists(directory + "/" + filename + ".mp4"):
         # 137 is 1920x1080 don't ask me how it just is
-        ydl_opts = {'format': '137+bestaudio',
+        ydl_opts = {'format_sort': ['res:1080', 'ext:mp4:m4a'],
                     'outtmpl': directory + "/" + filename}
         with YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
+
+    return filename
 
 def downloadMusic(directory, filename, url):
     ydl_opts = {
@@ -176,11 +186,12 @@ def processClips(urls, currentDirectory):
     for idx, url in enumerate(urls):
         print("Handling video: " + str(idx + 1) + ", " + str(url) + NEW_LINE)
         videoId = getVideoId(url)
-
-        downloadVideo(videoDirectory, videoId, url)
+        videoTitle = downloadVideo(videoDirectory, videoId, url)
         comments = getComments(service, videoId)
         timestamps,timestamps_cc,timestamps_f = getAllTimestamps(comments)
-        clipPath = videoDirectory + "/" + videoId + ".mp4"
+        pathID = videoTitle if VIDEO_FILE_NAME_IS_YT_TITLE else videoId
+        clipPath = videoDirectory + "/" + pathID + ".mp4"
+
         downloadsDirectory = currentDirectory + "/DownloadedClips"
         subs = []
         videoClip = VideoFileClip(clipPath)
@@ -250,6 +261,19 @@ if __name__ == "__main__":
         os.mkdir(musicDirectory)
 
     urls = processUrlInput()
+
+    print("Do these videos need to be downloaded from Youtube? y or n" + NEW_LINE)
+    while True:
+        command = input()
+        if command[0] == 'y' and len(command) == 1:
+            break
+        if command[0] == 'n' and len(command) == 1:
+            VIDEO_FILE_NAME_IS_YT_TITLE = True
+            break
+        else:
+            print("input did not match y or n, will proceed by downloading videos from YT." + NEW_LINE)
+            break
+
     clips, noMusicIndices = processClips(urls, currentDirectory)
     noMusicDurations = processNoMusicIndices(clips,noMusicIndices)
     finalClip = concatenate_videoclips(clips)
