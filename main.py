@@ -6,7 +6,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
-import youtube_dl
+from yt_dlp import YoutubeDL
 import datetime
 import re
 from timestamp import Timestamp
@@ -56,7 +56,7 @@ def downloadVideo(directory, filename, url):
         # 137 is 1920x1080 don't ask me how it just is
         ydl_opts = {'format': '137+bestaudio',
                     'outtmpl': directory + "/" + filename}
-        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+        with YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
 
 def downloadMusic(directory, filename, url):
@@ -69,7 +69,7 @@ def downloadMusic(directory, filename, url):
         }],
         'outtmpl': directory + "/" + filename + ".mp3"
         }
-    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+    with YoutubeDL(ydl_opts) as ydl:
         ydl.download([url])
 
 
@@ -160,13 +160,13 @@ def getAllTimestamps(comments):
                 timestamps_f.append(Timestamp(*group))
             else:
                 timestamps.append(Timestamp(*group))
-            
+
     # Sort comments by chronological order of the first given timestamp in a comment
     # We can sort faster by sorting the timestamps upon insertion but that's too much effort and we don't have that many timestamps lol
     timestamps_cc.sort()
     timestamps_f.sort()
     timestamps.sort()
-    
+
     return (timestamps,timestamps_cc,timestamps_f)
 
 
@@ -182,7 +182,7 @@ def processClips(urls, currentDirectory):
         timestamps,timestamps_cc,timestamps_f = getAllTimestamps(comments)
         clipPath = videoDirectory + "/" + videoId + ".mp4"
         downloadsDirectory = currentDirectory + "/DownloadedClips"
-        subs = []        
+        subs = []
         videoClip = VideoFileClip(clipPath)
         for timestamp_cc in timestamps_cc:
             subs.append(((timestamp_cc.startTime,timestamp_cc.endTime), timestamp_cc.cc))
@@ -190,7 +190,7 @@ def processClips(urls, currentDirectory):
             generator = lambda txt: TextClip(txt, font='Trebuchet MS', fontsize=60, color="white",stroke_color = "black",stroke_width = 2)
             subtitles = SubtitlesClip(subs, generator)
             videoClip = CompositeVideoClip([videoClip, subtitles.set_position(("center",0.9),relative=True)])
-       
+
         for timestamp in timestamps:
             if timestamp.command == CLIP:
                 clips.append(videoClip.subclip(timestamp.startTime, timestamp.endTime))
