@@ -17,8 +17,9 @@ Get comments from youtube video that follow a specific time stamp format. Clip t
 
 ### How to use - dev
 1. enter links, press enter after each link
-2. press f to start generating highlights
-3. after the highlight video has been processed, the program will ask if you would like to add music to the video. Enter an arbitrary number of youtube links if you want to include the audio or enter f to skip
+2. press f to proceed
+3. indicate y/n if the video URLs need to be downloaded from Youtube. In the case that you already have the videos on your local computer, ensure that they are in `/Videos` and that the name of the file is the exact same as the title of the video on Youtube. (e.g. Youtube Video Title == GX013489 == Video Name File == GX013489.mp4)
+4. after the highlight video has been processed, the program will ask if you would like to add music to the video. Enter an arbitrary number of youtube links if you want to include the audio or enter f to skip
 
 ### How to use - user
 #### captions ($cc)
@@ -28,7 +29,7 @@ Get comments from youtube video that follow a specific time stamp format. Clip t
 - format: `$c xx:xx-yy:yy`. Note that times like 1:24 can be written as either 01:24 or 1:24
 
 #### clip and no music($cnm)
-- format: `$cnm xx:xx-yy:yy`. Play a clip without music 
+- format: `$cnm xx:xx-yy:yy`. Play a clip without music
 
 #### download ($d) - dev only command
 - format: `$d xx:xx-yy:yy`
