@@ -22,7 +22,7 @@ EMPTY_DELETE_MESSAGE = "Nothing to delete." + NEW_LINE
 SLOW_MO_RATE = 0.3
 FADEWAY_TIME = 3
 FAST_FORWARD_RATE = 60
-MUSIC_LOUDNESS_FACTOR = 0.4
+MUSIC_LOUDNESS_FACTOR = 0.5
 
 CLIP = "c"
 CLIP_NO_MUSIC = "cnm"
@@ -76,6 +76,7 @@ def downloadMusic(directory, filename, url):
             'preferredcodec': 'mp3',
             'preferredquality': '192',
         }],
+        'keepvideo': True,
         'outtmpl': directory + "/" + filename + ".mp3"
         }
     with YoutubeDL(ydl_opts) as ydl:
@@ -90,7 +91,7 @@ def getComments(service, videoId):
     response = service.commentThreads().list(
         part="snippet",
         maxResults=100,
-        videoId=videoId
+        videoId=videoId,
     ).execute()
 
     numComments = response['pageInfo']['totalResults']
