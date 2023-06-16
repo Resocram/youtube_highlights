@@ -38,9 +38,6 @@ def getGroupedRecordings(files):
 
 if __name__ == "__main__":
     files = getListOfFiles()
-    # testFile = files[-1]
-    # print(testFile)
-    # os.rename("{}/gottem.txt".format(PATH), "{}/testing.txt".format(PATH))
 
     groupedRecordings = getGroupedRecordings(files)
     fileCounter = 0
