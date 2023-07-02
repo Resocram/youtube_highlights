@@ -40,7 +40,7 @@ if __name__ == "__main__":
     files = getListOfFiles()
 
     groupedRecordings = getGroupedRecordings(files)
-    fileCounter = 0
+    fileCounter = 1
     # the keys should be in sorted order (windows default)
     for key in groupedRecordings.keys():
         for subrecordingID in groupedRecordings[key]:
