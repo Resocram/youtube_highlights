@@ -17,7 +17,7 @@ CLIENT_SECRETS_FILE = os.path.dirname(
 SCOPES = ['https://www.googleapis.com/auth/youtube.force-ssl']
 API_SERVICE_NAME = 'youtube'
 API_VERSION = 'v3'
-NEW_LINE = '\n'
+NEW_LINE = '\n ========================================'
 EMPTY_DELETE_MESSAGE = "Nothing to delete." + NEW_LINE
 SLOW_MO_RATE = 0.3
 FADEWAY_TIME = 3
@@ -105,22 +105,13 @@ def getComments(service, videoId):
     return comments
 
 def processUrlInput():
-    urls = []
-    while True:
-        command = input()
-        if command[0] == 'd' and len(command) == 1:
-            if len(urls) == 0:
-                print(EMPTY_DELETE_MESSAGE)
-            else:
-                print("You deleted " + urls[-1] + NEW_LINE)
-                del urls[-1]
-        elif command[0] == 'f' and len(command) == 1:
-            break
-        else:
-            urls.append(command)
-            print("Added " + command)
-        print("You currently have " + str(len(urls)) + " items." + NEW_LINE)
+    playlistURL = input()
 
+    with YoutubeDL() as ydl:
+        playlist_info = ydl.extract_info(playlistURL, download=False)
+        videosInPlaylist = playlist_info["entries"]
+
+    urls = [video["webpage_url"] for video in videosInPlaylist]
     return urls
 
 def processMusicInput(clip_len):
@@ -248,7 +239,8 @@ if __name__ == "__main__":
     # When running locally, disable OAuthlib's HTTPs verification.
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
     service = getAuthenticatedService()
-    print("Enter a list of youtube videos. Type d to delete previously added video. Type f when finished" + NEW_LINE)
+
+    print("Enter a Youtube Playlist." + NEW_LINE)
     currentDirectory = os.path.dirname(os.path.realpath(__file__))
     videoDirectory = currentDirectory + "/Videos"
     outputDirectory = currentDirectory + "/Output"
