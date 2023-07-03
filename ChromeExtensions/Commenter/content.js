@@ -66,6 +66,8 @@ function getTextInput() {
     textInput.id = TEXT_ID
     textInput.style.position = "absolute"
     textInput.style.width = "400px"
+    textInput.style.padding = "10px"
+    textInput.style.fontSize = "16px"
 
     textInput.addEventListener("change", (event) => {
         CURRENT_COMMENT = event.target.value
