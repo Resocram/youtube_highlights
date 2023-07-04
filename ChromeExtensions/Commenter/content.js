@@ -8,7 +8,11 @@ const TEXT_ID = "highlight-textarea"
 const GREEN = "#00ef5f"
 const HOVER_GREEN = "#74ef00"
 
-let CURRENT_COMMENT = ""
+let CURRENT_COMMENT = {
+    value: "",
+    hasStartTime: false,
+    currCommand: ""
+}
 
 // get triggered when user activates chrome extension
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -70,7 +74,11 @@ function getTextInput() {
     textInput.style.fontSize = "16px"
 
     textInput.addEventListener("change", (event) => {
-        CURRENT_COMMENT = event.target.value
+        CURRENT_COMMENT = {
+            value: event.target.value,
+            hasStartTime: undefined,
+            currCommand: ""
+        }
     })
 
     textContainer.appendChild(textInput)
@@ -126,15 +134,17 @@ function getCommentButton(index) {
 
         // inputs comment content, making the "Comment" button clickable
         const commentInput = document.querySelector("#contenteditable-root")
-        commentInput.value = CURRENT_COMMENT
-        commentInput.innerHTML = CURRENT_COMMENT
+        commentInput.value = CURRENT_COMMENT.value
+        commentInput.innerHTML = CURRENT_COMMENT.value
         const event = new Event('input', { bubbles: true })
         commentInput.dispatchEvent(event)
 
         // click "Comment" button to post
         document.querySelector("#submit-button").click()
 
-        CURRENT_COMMENT = ""
+        CURRENT_COMMENT.value = ""
+        CURRENT_COMMENT.currCommand = ""
+        CURRENT_COMMENT.hasStartTime = false
         updateTextInput()
     })
 
@@ -148,17 +158,27 @@ function computeButtonPosition(index) {
 }
 
 function addStartTime() {
-    CURRENT_COMMENT += `${getVideoCurrTime()}-`
+    const currTime = getVideoCurrTime()
+    CURRENT_COMMENT.value += `${currTime}-`
+    if (CURRENT_COMMENT.hasStartTime) {
+        CURRENT_COMMENT = {
+            ...CURRENT_COMMENT,
+            value: `${CURRENT_COMMENT.currCommand}${currTime}-`,
+        }
+    }
+    CURRENT_COMMENT.hasStartTime = true
     updateTextInput()
 }
 
 function addEndTime() {
-    CURRENT_COMMENT += `${getVideoCurrTime()} `
+    CURRENT_COMMENT.value += `${getVideoCurrTime()} `
     updateTextInput()
 }
 
 function addCommand(command) {
-    CURRENT_COMMENT += `${COMMAND_PROMPT}${command} `
+    const formattedCommand = `${COMMAND_PROMPT}${command} `
+    CURRENT_COMMENT.value += formattedCommand
+    CURRENT_COMMENT.currCommand = formattedCommand
     updateTextInput()
 }
 
@@ -211,7 +231,7 @@ function getVideoCurrTime() {
 
 function updateTextInput() {
     const input = document.querySelector(`#${TEXT_ID}`)
-    input.value = CURRENT_COMMENT
+    input.value = CURRENT_COMMENT.value
 }
 
 // ============== HOT KEYS ==============
