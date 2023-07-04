@@ -214,6 +214,12 @@ function getCommandButton(index, name, command, isCommand) {
 
     button.addEventListener('click', () => {
         addCommand(command)
+        // if the current command is the second command
+        // turn off the functionality that replaces the command + start time
+        if (CURRENT_COMMENT.hasStartTime) {
+            CURRENT_COMMENT.hasStartTime = false
+            CURRENT_COMMENT.currCommand = ""
+        }
     })
 
     return button
