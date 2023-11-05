@@ -77,10 +77,14 @@ def downloadMusic(directory, filename, url):
             'preferredquality': '192',
         }],
         'keepvideo': True,
-        'outtmpl': directory + "/" + filename + ".mp3"
+        'outtmpl': directory + "\\" + filename + ".mp3"
         }
     with YoutubeDL(ydl_opts) as ydl:
-        ydl.download([url])
+        ydl.cache.remove()
+        try:
+            ydl.download([url])
+        except Exception as error:
+            pass
 
 
 def getVideoId(url):
@@ -106,11 +110,17 @@ def getComments(service, videoId):
 
 def processUrlInput():
     playlistURL = input()
+    # added to avoid "Incomplete data received" exception (https://github.com/yt-dlp/yt-dlp/issues/8206#issuecomment-1740223250)
+    ydl_opts = {
+        "ignoreerrors": True
+    }
 
-    with YoutubeDL() as ydl:
+    with YoutubeDL(ydl_opts) as ydl:
         playlist_info = ydl.extract_info(playlistURL, download=False)
         videosInPlaylist = playlist_info["entries"]
 
+    # pop in order to avoid this issue: https://github.com/yt-dlp/yt-dlp/issues/8206#issuecomment-1735924571
+    # videosInPlaylist.pop()
     urls = [video["webpage_url"] for video in videosInPlaylist]
     return urls
 
