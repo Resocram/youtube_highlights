@@ -129,6 +129,9 @@ function getCommentButton(index) {
     commentButton.innerHTML = "Post"
 
     commentButton.addEventListener('click', () => {
+        if (CURRENT_COMMENT.value == "") {
+            return;
+        }
         // Triggers Youtube UI to make their "Comment" button visible
         document.querySelector("#placeholder-area").click()
 
