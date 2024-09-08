@@ -47,7 +47,8 @@ def getAuthenticatedService():
         else:
             flow = InstalledAppFlow.from_client_secrets_file(
                 CLIENT_SECRETS_FILE, SCOPES)
-            credentials = flow.run_local_server(port=0)
+            # https://stackoverflow.com/questions/31414407/google-oauth-2-0-redirect-uri-mismatch-port-changed-on-callback
+            credentials = flow.run_local_server(port=8080)
         # Save the credentials for the next run
         with open('token.pickle', 'wb') as token:
             pickle.dump(credentials, token)
