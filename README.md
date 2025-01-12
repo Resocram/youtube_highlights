@@ -10,7 +10,7 @@ Get comments from youtube video that follow a specific time stamp format. Clip t
 1. run `pip install -r requirements.txt`
 2. add client_secrets.json file with the correct credentials (contact developer for more info)
     - fetching Youtube comments takes a dependency on this
-    - can generate and download these secrets by going to Google Developer Console --> make sure that Youtube Data API v3 is enabled under "Enabled APIs & Services" --> create Credentials under "Credentials" --> download and paste this to client_secrets.json
+    - can generate and download these secrets by going to Google Developer Console --> make sure that Youtube Data API v3 is enabled under "Enabled APIs & Services" --> create Credentials under "Credentials" --> download and paste this to client_secrets.json (may need to delete token.pickle file it already exists on your local)
 3. download ffmpeg and add to environment variable (required by the library that is used to download YT video)
 4. install imagemagick, follow the instructions shown [here](https://imagemagick.org/script/download.php)
 5. run `python main.py`
