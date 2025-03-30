@@ -11,6 +11,9 @@ import datetime
 import re
 from timestamp import Timestamp
 from moviepy.video.tools.subtitles import SubtitlesClip
+from pytube import Playlist
+from pytubefix import YouTube
+from pytubefix.cli import on_progress
 
 CLIENT_SECRETS_FILE = os.path.dirname(
     os.path.realpath(__file__)) + "/client_secret.json"
@@ -55,38 +58,39 @@ def getAuthenticatedService():
     return build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
 
 
-def downloadVideo(directory, filename, url):
+def downloadVideo(service, directory, filename, videoObj):
+    """
+    Downloads the YT vid if necessary (usually not).
+    Returns a list of the file names
+    """
     if VIDEO_FILE_NAME_IS_YT_TITLE:
-        with YoutubeDL() as ydl:
-            info_dict = ydl.extract_info(url, download=False)
-            filename = info_dict.get('title', None)
+        # skip downloading and just return where the file is in local.
+        # the local file name is expected to match the youtube title
+
+        # google API docs: https://googleapis.github.io/google-api-python-client/docs/dyn/youtube_v3.videos.html#list
+        videoMetadata = service.videos().list(part="snippet", id=filename).execute()
+        return videoMetadata.get('items')[0]['snippet']['localized']['title']
+
+    print("Downloading from Youtube is probably broken... Need to look for a new API to use")
 
     if not os.path.exists(directory + "/" + filename + ".mp4"):
         ydl_opts = {'format_sort': ['res:1080', 'ext:mp4:m4a'],
                     'outtmpl': directory + "/" + filename}
         with YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+            ydl.download([videoObj.watch_url])
 
     return filename
 
-def downloadMusic(directory, filename, url):
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }],
-        'keepvideo': True,
-        'outtmpl': directory + "\\" + filename + ".mp3"
-        }
-    with YoutubeDL(ydl_opts) as ydl:
-        ydl.cache.remove()
-        try:
-            ydl.download([url])
-        except Exception as error:
-            pass
+def downloadMusic(filename, url):
+    # Create Youtube Object.
+    yt = YouTube(url, on_progress_callback=on_progress)
 
+    audio = yt.streams.filter(only_audio=True).first()
+    if audio:
+        print('Downloading Audio...')
+        audio.download(output_path='Music', filename=filename + ".mp3")
+    else:
+        pass
 
 def getVideoId(url):
     return url[url.find("=")+1:len(url)]
@@ -109,21 +113,16 @@ def getComments(service, videoId):
     print("Comments found: " + str(comments) + NEW_LINE)
     return comments
 
-def processUrlInput():
+def getPlaylistVideoObjects():
+    """
+    Gets a youtube "playlist" url from the input and returns a video object per vid in the playlist.
+
+    See the structure of the object here: https://pytube.io/en/latest/api.html
+    """
     playlistURL = input()
-    # added to avoid "Incomplete data received" exception (https://github.com/yt-dlp/yt-dlp/issues/8206#issuecomment-1740223250)
-    ydl_opts = {
-        "ignoreerrors": True
-    }
 
-    with YoutubeDL(ydl_opts) as ydl:
-        playlist_info = ydl.extract_info(playlistURL, download=False)
-        videosInPlaylist = playlist_info["entries"]
+    return Playlist(playlistURL).videos
 
-    # pop in order to avoid this issue: https://github.com/yt-dlp/yt-dlp/issues/8206#issuecomment-1735924571
-    # videosInPlaylist.pop()
-    urls = [video["webpage_url"] for video in videosInPlaylist]
-    return urls
 
 def processMusicInput(clip_len):
     try:
@@ -146,7 +145,7 @@ def processMusicInput(clip_len):
         audioClips = []
         for url in urls:
             videoId = getVideoId(url)
-            downloadMusic(musicDirectory, videoId, url)
+            downloadMusic(videoId, url)
             audioClips.append(AudioFileClip(musicDirectory + "/" + videoId + ".mp3"))
         return concatenate_audioclips(audioClips) if len(audioClips) > 0 else None
 
@@ -182,13 +181,15 @@ def getAllTimestamps(comments):
     return (timestamps,timestamps_cc,timestamps_f)
 
 
-def processClips(urls, currentDirectory):
+def processClips(videoObjects, currentDirectory):
     clips = []
     noMusicIndices = []
-    for idx, url in enumerate(urls):
+
+    for idx, vidObj in enumerate(videoObjects):
+        url = vidObj.watch_url
         print("Handling video: " + str(idx + 1) + ", " + str(url) + NEW_LINE)
         videoId = getVideoId(url)
-        videoTitle = downloadVideo(videoDirectory, videoId, url)
+        videoTitle = downloadVideo(service, videoDirectory, videoId, url)
         comments = getComments(service, videoId)
         timestamps,timestamps_cc,timestamps_f = getAllTimestamps(comments)
         pathID = videoTitle if VIDEO_FILE_NAME_IS_YT_TITLE else videoId
@@ -263,7 +264,7 @@ if __name__ == "__main__":
     if not os.path.exists(musicDirectory):
         os.mkdir(musicDirectory)
 
-    urls = processUrlInput()
+    videoObjects = getPlaylistVideoObjects()
 
     print("Do these videos need to be downloaded from Youtube? y or n" + NEW_LINE)
     while True:
@@ -277,7 +278,7 @@ if __name__ == "__main__":
             print("input did not match y or n, will proceed by downloading videos from YT." + NEW_LINE)
             break
 
-    clips, noMusicIndices = processClips(urls, currentDirectory)
+    clips, noMusicIndices = processClips(videoObjects, currentDirectory)
     noMusicDurations = processNoMusicIndices(clips,noMusicIndices)
     finalClip = concatenate_videoclips(clips)
     musicAudio = processMusicInput(finalClip.duration)
