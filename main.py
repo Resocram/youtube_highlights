@@ -58,7 +58,7 @@ def getAuthenticatedService():
     return build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
 
 
-def downloadVideo(service, directory, filename, videoObj):
+def downloadVideo(service, directory, filename, url):
     """
     Downloads the YT vid if necessary (usually not).
     Returns a list of the file names
@@ -71,13 +71,18 @@ def downloadVideo(service, directory, filename, videoObj):
         videoMetadata = service.videos().list(part="snippet", id=filename).execute()
         return videoMetadata.get('items')[0]['snippet']['localized']['title']
 
-    print("Downloading from Youtube is probably broken... Need to look for a new API to use")
+    print("Downloading from Youtube...")
 
-    if not os.path.exists(directory + "/" + filename + ".mp4"):
-        ydl_opts = {'format_sort': ['res:1080', 'ext:mp4:m4a'],
-                    'outtmpl': directory + "/" + filename}
-        with YoutubeDL(ydl_opts) as ydl:
-            ydl.download([videoObj.watch_url])
+    yt = YouTube(url)
+    for stream in yt.streams:
+        if "1080p" in str(stream) and "mp4" in str(stream):
+            print(f"downloading {stream}")
+            stream.download(directory, filename + ".mp4")
+
+    # ====== THIS IS PROBABLY HOW YOU'RE SUPPOSED TO USE THE PYTUBE LIBRARY TO DOWNLOAD, BUT IT DOESN'T WORK AND FORCES 360P DOWNLOAD FOR SOME REASON ======
+    # yt.streams.filter(res="720p", progressive=True, file_extension='mp4').order_by('resolution').desc().first()
+    # video = yt.streams.get_by_resolution(720)
+    # video.download(directory, filename + ".mp4")
 
     return filename
 
