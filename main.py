@@ -11,7 +11,7 @@ import datetime
 import re
 from timestamp import Timestamp
 from moviepy.video.tools.subtitles import SubtitlesClip
-from pytube import Playlist
+from pytubefix import Playlist
 from pytubefix import YouTube
 from pytubefix.cli import on_progress
 
@@ -124,9 +124,42 @@ def getPlaylistVideoObjects():
 
     See the structure of the object here: https://pytube.io/en/latest/api.html
     """
-    playlistURL = input()
+    # playlistURL = input()
 
-    return Playlist(playlistURL).videos
+    # return Playlist(playlistURL).videos
+    playlistURL = input().strip()
+
+    # Lightweight mock class to mimic the pytube/pytubefix video object structure
+    # This ensures compatibility with: url = vidObj.watch_url in processClips
+    class MockVideoObject:
+        def __init__(self, url):
+            self.watch_url = url
+
+    print("Connecting to playlist via yt-dlp...")
+
+    ydl_opts = {
+        'extract_flat': 'in_playlist',  # Fast extraction: only pull metadata, don't download files yet
+        'skip_download': True,
+        'quiet': True,
+    }
+
+    video_objects = []
+    try:
+        with YoutubeDL(ydl_opts) as ydl:
+            playlist_dict = ydl.extract_info(playlistURL, download=False)
+
+            if 'entries' in playlist_dict:
+                for entry in playlist_dict['entries']:
+                    if entry:
+                        video_url = f"https://www.youtube.com/watch?v={entry['id']}"
+                        video_objects.append(MockVideoObject(video_url))
+
+        print(f"✅ Success! Found {len(video_objects)} videos in the playlist.")
+        return video_objects
+
+    except Exception as e:
+        print(f"❌ Error extracting playlist with yt-dlp: {e}")
+        return []
 
 
 def processMusicInput(clip_len):
@@ -167,7 +200,9 @@ def getAllTimestamps(comments):
     timestamps_cc = []
     timestamps_f = []
     for comment in comments:
-        regex = "\$([a-z]{1,3})\s([0-9]{1,2}):([0-9]{2})-([0-9]{1,2}):([0-9]{2})\s*\"*([^$\"]*)\"*"
+        # regex = "\$([a-z]{1,3})\s([0-9]{1,2}):([0-9]{2})-([0-9]{1,2}):([0-9]{2})\s*\"*([^$\"]*)\"*"
+        # regex = r"\$([a-z]{1,3})\s([0-9]{1,2}):([0-9]{2})-([0-9]{1,2}):([0-9]{2})\s*\"*([^$\"]*)\"*"
+        regex = r"\$([a-z]{1,3})\s([0-9]{1,2}):([0-9]{2})-([0-9]{1,2}):([0-9]{2})\s*\"*([^$\"]*)\"*"
         groups = re.findall(regex,comment)
         for group in groups:
             if group[0] == CLOSED_CAPTIONING:
@@ -285,6 +320,11 @@ if __name__ == "__main__":
 
     clips, noMusicIndices = processClips(videoObjects, currentDirectory)
     noMusicDurations = processNoMusicIndices(clips,noMusicIndices)
+
+    if not clips:
+        print("❌ Error: No clips were generated! Check if the videos have matching timestamp comments.")
+        exit()
+
     finalClip = concatenate_videoclips(clips)
     musicAudio = processMusicInput(finalClip.duration)
     if musicAudio is not None:
