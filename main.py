@@ -42,7 +42,7 @@ def getAuthenticatedService():
     if os.path.exists('token.pickle'):
         with open('token.pickle', 'rb') as token:
             credentials = pickle.load(token)
-    #  Check if the credentials are invalid or do not exist
+    # Check if the credentials are invalid or do not exist
     if not credentials or not credentials.valid:
         # Check if the credentials have expired
         if credentials and credentials.expired and credentials.refresh_token:
@@ -78,11 +78,6 @@ def downloadVideo(service, directory, filename, url):
         if "1080p" in str(stream) and "mp4" in str(stream):
             print(f"downloading {stream}")
             stream.download(directory, filename + ".mp4")
-
-    # ====== THIS IS PROBABLY HOW YOU'RE SUPPOSED TO USE THE PYTUBE LIBRARY TO DOWNLOAD, BUT IT DOESN'T WORK AND FORCES 360P DOWNLOAD FOR SOME REASON ======
-    # yt.streams.filter(res="720p", progressive=True, file_extension='mp4').order_by('resolution').desc().first()
-    # video = yt.streams.get_by_resolution(720)
-    # video.download(directory, filename + ".mp4")
 
     return filename
 
@@ -124,13 +119,9 @@ def getPlaylistVideoObjects():
 
     See the structure of the object here: https://pytube.io/en/latest/api.html
     """
-    # playlistURL = input()
-
-    # return Playlist(playlistURL).videos
     playlistURL = input().strip()
 
     # Lightweight mock class to mimic the pytube/pytubefix video object structure
-    # This ensures compatibility with: url = vidObj.watch_url in processClips
     class MockVideoObject:
         def __init__(self, url):
             self.watch_url = url
@@ -200,8 +191,6 @@ def getAllTimestamps(comments):
     timestamps_cc = []
     timestamps_f = []
     for comment in comments:
-        # regex = "\$([a-z]{1,3})\s([0-9]{1,2}):([0-9]{2})-([0-9]{1,2}):([0-9]{2})\s*\"*([^$\"]*)\"*"
-        # regex = r"\$([a-z]{1,3})\s([0-9]{1,2}):([0-9]{2})-([0-9]{1,2}):([0-9]{2})\s*\"*([^$\"]*)\"*"
         regex = r"\$([a-z]{1,3})\s([0-9]{1,2}):([0-9]{2})-([0-9]{1,2}):([0-9]{2})\s*\"*([^$\"]*)\"*"
         groups = re.findall(regex,comment)
         for group in groups:
@@ -213,7 +202,6 @@ def getAllTimestamps(comments):
                 timestamps.append(Timestamp(*group))
 
     # Sort comments by chronological order of the first given timestamp in a comment
-    # We can sort faster by sorting the timestamps upon insertion but that's too much effort and we don't have that many timestamps lol
     timestamps_cc.sort()
     timestamps_f.sort()
     timestamps.sort()
@@ -221,7 +209,7 @@ def getAllTimestamps(comments):
     return (timestamps,timestamps_cc,timestamps_f)
 
 
-def processClips(videoObjects, currentDirectory):
+def processClips(videoObjects, currentDirectory, ext="mp4"):
     clips = []
     noMusicIndices = []
 
@@ -233,7 +221,8 @@ def processClips(videoObjects, currentDirectory):
         comments = getComments(service, videoId)
         timestamps,timestamps_cc,timestamps_f = getAllTimestamps(comments)
         pathID = videoTitle if VIDEO_FILE_NAME_IS_YT_TITLE else videoId
-        clipPath = videoDirectory + "/" + pathID + ".mp4"
+
+        clipPath = f"{videoDirectory}/{pathID}.{ext}"
 
         downloadsDirectory = currentDirectory + "/DownloadedClips"
         subs = []
@@ -252,7 +241,7 @@ def processClips(videoObjects, currentDirectory):
                 if not os.path.exists(downloadsDirectory):
                     os.mkdir(downloadsDirectory)
                 downloadClip = videoClip.subclip(timestamp.startTime, timestamp.endTime)
-                downloadClip.write_videofile(downloadsDirectory + "/" + str(timestamp.startTime) + str(timestamp.endTime) + ".mp4")
+                downloadClip.write_videofile(f"{downloadsDirectory}/{timestamp.startTime}{timestamp.endTime}.{ext}")
                 downloadClip.close()
             elif timestamp.command == CLIP_NO_MUSIC:
                 noMusicIndices.append(len(clips))
@@ -284,7 +273,7 @@ def removeNoMusicDurations(musicAudio,noMusicDurations):
     for noMusicDuration in noMusicDurations:
         start = noMusicDuration[0]
         end = noMusicDuration[1]
-        musicAudio =  concatenate_audioclips([musicAudio.subclip(0,start),musicAudio.subclip(start,end).fx(afx.volumex,0),musicAudio.subclip(end,musicAudio.duration)])
+        musicAudio = concatenate_audioclips([musicAudio.subclip(0,start),musicAudio.subclip(start,end).fx(afx.volumex,0),musicAudio.subclip(end,musicAudio.duration)])
     return musicAudio
 
 if __name__ == "__main__":
@@ -306,6 +295,8 @@ if __name__ == "__main__":
 
     videoObjects = getPlaylistVideoObjects()
 
+    file_extension = input("Enter video file extension (mov or mp4): ").strip().lstrip('.')
+
     print("Do these videos need to be downloaded from Youtube? y or n" + NEW_LINE)
     while True:
         command = input()
@@ -318,11 +309,11 @@ if __name__ == "__main__":
             print("input did not match y or n, will proceed by downloading videos from YT." + NEW_LINE)
             break
 
-    clips, noMusicIndices = processClips(videoObjects, currentDirectory)
+    clips, noMusicIndices = processClips(videoObjects, currentDirectory, ext=file_extension)
     noMusicDurations = processNoMusicIndices(clips,noMusicIndices)
 
     if not clips:
-        print("❌ Error: No clips were generated! Check if the videos have matching timestamp comments.")
+        print("❌ Error: No clips were generated! Check if the videos exist in /Videos and have matching timestamp comments.")
         exit()
 
     finalClip = concatenate_videoclips(clips)
@@ -335,4 +326,3 @@ if __name__ == "__main__":
         finalClip.audio = new_audioclip.subclip(finalClip.start,finalClip.end)
     finalClip.audio = finalClip.audio.fx(afx.audio_fadeout,FADEWAY_TIME)
     finalClip.write_videofile(outputDirectory + "/" + "output.mp4",threads=8)
-
