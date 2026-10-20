@@ -241,7 +241,12 @@ def processClips(videoObjects, currentDirectory, ext="mp4"):
                 if not os.path.exists(downloadsDirectory):
                     os.mkdir(downloadsDirectory)
                 downloadClip = videoClip.subclip(timestamp.startTime, timestamp.endTime)
-                downloadClip.write_videofile(f"{downloadsDirectory}/{timestamp.startTime}{timestamp.endTime}.{ext}")
+                # downloadClip.write_videofile(f"{downloadsDirectory}/{timestamp.startTime}{timestamp.endTime}.{ext}")
+                downloadClip.write_videofile(
+                    f"{downloadsDirectory}/{timestamp.startTime}{timestamp.endTime}.mp4",
+                    codec="libx264",
+                    audio_codec="aac"
+                )
                 downloadClip.close()
             elif timestamp.command == CLIP_NO_MUSIC:
                 noMusicIndices.append(len(clips))
@@ -325,4 +330,10 @@ if __name__ == "__main__":
         new_audioclip = CompositeAudioClip([finalClip.audio, musicAudio]) if finalClip.audio is not None else CompositeAudioClip([musicAudio])
         finalClip.audio = new_audioclip.subclip(finalClip.start,finalClip.end)
     finalClip.audio = finalClip.audio.fx(afx.audio_fadeout,FADEWAY_TIME)
-    finalClip.write_videofile(outputDirectory + "/" + "output.mp4",threads=8)
+    # finalClip.write_videofile(outputDirectory + "/" + "output.mp4",threads=8)
+    finalClip.write_videofile(
+        outputDirectory + "/output.mp4",
+        codec="libx264",
+        audio_codec="aac",
+        threads=8
+    )
